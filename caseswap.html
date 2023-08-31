@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover"
+    name="viewport">
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link type="text/css" href="css/style.css?cachebustbuildno=0" rel="stylesheet" />
+  <title>Secret Spycase Swap DoubleDown FortKnox</title>
+</head>
+
+<body class="">
+  <main>
+    <div class="layout">
+
+      <!-- MAIN ASSETS -->
+      <div class="header_top"></div>
+      <div class="backdrop_image"></div>
+      <div class="border_dialog_gold"></div>
+
+      <!-- CASE BG IMAGES -->
+      <div class="containerCasesBg">
+        <template class="case_bg">
+          <div class="caseBg"></div>
+        </template>
+      </div>
+
+      <!-- A,B,C,D TEXT BUTTON -->
+      <div class="containerCases">
+        <template class="case_letter">
+          <button class="case" name="purchase" onclick=""></button>
+        </template>
+      </div>
+
+      <!-- A,B,C,D TEXT  -->
+      <div class="containerMenu">
+        <template class="case_amount">
+          <div class='caseMenu {disableMenu}'></div>
+        </template>
+      </div>
+
+      <!-- SWAP BUTTON -->
+      <button class="swapButt {disable}" name="swap" onclick="swapCases()">
+        <div class="flex-container">
+          <div class="butt_left"></div>
+          <div class="butt_middle">SWAP</div>
+          <div class="butt_right"></div>
+        </div>
+      </button>
+
+      <!-- DEAL BUTTON -->
+      <button class="dealButt" name="deal" onclick="makeDeal()">
+        <div class="flex-container">
+          <div class="butt_left"></div>
+          <div class="butt_middle">SAFE BET</div>
+          <div class="butt_right"></div>
+        </div>
+      </button>
+
+      <!-- TAKE BUTTON -->
+      <button class="takeButt" name="take" onclick="cashOut()">
+        <div class="flex-container">
+          <div class="butt_left"></div>
+          <div class="butt_middle">TAKE <span class="upperCaseText">Case</span></div>
+          <div class="butt_right"></div>
+        </div>
+      </button>
+
+      <!-- MENU ASSETS -->
+      <div class="menuBox"></div>
+
+      <!-- CONFIRMATION ASSETS -->
+      <div class="txtBox">Tap a Case to open it. Your Safe Bet offer will change.</div>
+
+      <!-- CONFIRMATION ASSETS -->
+      <div class="confirmationTxtBox">
+        <span class="upperCaseText"></span>
+      </div>
+      <div class="finalCase"></div>
+
+      <div class="prizeMenuTitle">REMAINING PRIZES</div>
+
+      <!-- YES BUTTON -->
+      <button class="yesButt" name="yes" onclick="collectCase()">
+        <div class="flex-container">
+          <div class="butt_left"></div>
+          <div class="butt_middle">YES</div>
+          <div class="butt_right"></div>
+        </div>
+      </button>
+
+      <!-- NO BUTTON -->
+      <button class="noButt" name="no" onclick="changeDecision()">
+        <div class="flex-container">
+          <div class="butt_left"></div>
+          <div class="butt_middle">NO</div>
+          <div class="butt_right"></div>
+        </div>
+      </button>
+
+      <!-- DealAmount ASSETS -->
+      <div class="dealAmount_container"></div>
+      <div class="dealAmountTxtPos">
+        <div class="dealAmountTxt"></div>
+      </div>
+
+      <!-- FINAL CASE ASSETS -->
+      <div class="openCaseImg"></div>
+      <div class="creditsImg"></div>
+      <div class="openCasePos">
+        <div class="openCaseTxt">
+
+        </div>
+      </div>
+
+      <div class="openCasetxtBox"></div>
+      <div class="openCaseCreditTxt"></div>
+
+    </div>
+  </main>
+  <script>
+
+   //format amount value example 1,000,000
+    Number.prototype.formatRadix = function (delimiter) {
+      return (this.toString().match(/-?\d+/g) || ['0'])
+        .map((v, i) => i === 0 ?
+          v.split('').reverse().join('')
+            .replace(/(\d{3})(?!-|$)/g, '$1' + (delimiter || ','))
+            .split('').reverse().join('') :
+          v
+        ).join('.');
+    };
+
+    //abbreviate amount value example 300K 10M
+    Number.prototype.abbreviateNum = function () {
+      var suffixes = ["", "K", "M", "B", "T"];
+      var suffixNum = this.toString().length < 7 ? Math.floor(this.toString().length / 4) : Math.floor(this.toString().length / 3);
+      var shortValue = parseFloat((suffixNum != 0 ? (this / Math.pow(1000, suffixNum)) : this).toPrecision(3));
+      return shortValue + suffixes[suffixNum];
+    };
+
+
+    String.prototype.abbreviateNum = function () {
+      return parseFloat(this || '0').abbreviateNum();
+    };
+
+    String.prototype.formatRadix = function (delimiter) {
+      return parseFloat(this || '0').formatRadix(delimiter);
+    }
+
+    var configplayAgainTrigger = false;
+    var caseAmts = [100000, 200000, 250000, 300000, 400000, 500000, 1000000, 2000000, 5000000, 10000000];
+    var caseAmtMenus = [100000, 200000, 250000, 300000, 400000, 500000, 1000000, 2000000, 5000000, 10000000];
+    var alphabets = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+
+    // set up starting Deal Amount
+    var totalSum = (a, b) => a + b;
+
+    var allMenuAmts = caseAmtMenus;
+    var totalSumOfAllCases = caseAmts.reduce(totalSum);
+    var bankDealAmountValue = parseFloat((totalSumOfAllCases / caseAmts.length).toPrecision(3));
+    var casesPicked = [];
+    var casesRemaining = [];
+
+    // The Fisher Yates Method Sorting an Array in Random Order
+    for (i = caseAmts.length - 1; i > 0; i--) {
+      j = Math.floor(Math.random() * i)
+      k = caseAmts[i]
+      caseAmts[i] = caseAmts[j]
+      caseAmts[j] = k
+    }
+
+    // create model for cases
+    model = {
+      secretCase: caseAmts[caseAmts.length - 1],
+      cases: caseAmts.map((p, i) => {
+        return {
+          caseAmt: caseAmts[i],
+          caseAmtAbbreviate: caseAmts[i].abbreviateNum(),
+          caseAmtMenuAbbreviate: caseAmtMenus[i].abbreviateNum(),
+          aphabet: alphabets[i],
+          casePos: i,
+          yourCase: (caseAmts.length - 1) == i ? 'yourCase' : 'notYourCase'
+        }
+      })
+    };
+
+    function caseSelected(casePos, caseAmt) {
+      // start campaign when user select first case
+      if (casesPicked.length <= 1) {
+        document.body.classList.add('startCampaign');
+      }
+      // Make offer amount text bounce everytime a case is clicked
+      document.getElementsByClassName('dealAmountTxt')[0].classList.remove('bounce');
+      // Build array of picked cases
+      casesPicked.push(caseAmt);
+      // Get the Cases that have not been picked
+      casesRemaining = caseAmts;
+      // Get and remove selected case amount
+      var removeCase = casesRemaining.indexOf(caseAmt);
+      if (removeCase > -1) {
+        casesRemaining.splice(removeCase, 1);
+      }
+      // Get sum value of total cases selected
+      var totalSumOfCasesPicked = casesPicked.reduce(totalSum);
+      // Set the DealAmount
+      bankDealAmountValue = (((totalSumOfAllCases - totalSumOfCasesPicked) / casesRemaining.length).toPrecision(3));
+      // Get caseMenu values
+      var caseMenuAmt = caseAmt.abbreviateNum();
+      // Change menu amount color function
+      function changeMenuAmtColor(amount, index) {
+        if (amount === caseAmt) {
+          document.getElementsByClassName('caseMenu')[index].classList.add('menu-disable');
+        }
+      }
+
+      // Find and Change menu amount color
+      allMenuAmts.find(changeMenuAmtColor);
+      // 2 cases are left the user must cashout or make a deal
+      if (casesRemaining.length <= 2) {
+        // disable all case buttons
+        document.body.classList.add('disableAllCases');
+        document.body.classList.add('swapCases');
+        getFinalCasePos();
+      }
+      // Swap image to open case image
+      document.getElementsByClassName('caseBg')[casePos].classList.add('caseOpen');
+      document.getElementsByClassName('caseBg')[casePos].classList.remove('caseClosed');
+      document.getElementsByClassName('case')[casePos].classList.add('btn-disable', 'case-selected');
+      document.getElementsByClassName('case')[casePos].innerHTML = caseMenuAmt;
+      document.getElementsByClassName('dealAmountTxt')[0].innerHTML = bankDealAmountValue.abbreviateNum();
+      // Make offer amount text bounce everytime a case is clicked
+      document.getElementsByClassName('dealAmountTxt')[0].classList.add('bounce');
+  
+
+    }
+
+    function getFinalCasePos() {
+      var pageWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+      var pageHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+      // get the final case position
+
+      setTimeout(() => {
+        var rect = document.querySelectorAll('.caseClosed')[0].getBoundingClientRect();
+      document.querySelectorAll('.finalCase')[0].style.left = rect.left / pageWidth * 100 + '%';
+      document.querySelectorAll('.finalCase')[0].style.top = rect.top / pageHeight * 100 + '%';
+      }, 1000);
+    }
+
+    // swap case button method
+    function swapCases() {
+      // set last case as final total
+      document.body.classList.add('confirmation');
+      document.getElementsByClassName('openCaseTxt')[0].innerHTML =  casesRemaining[0].formatRadix();
+      document.getElementsByClassName('openCasetxtBox')[0].innerHTML =  'By swapping your case, you won:';
+      document.getElementsByClassName('confirmationTxtBox')[0].innerHTML = 'ARE YOU SURE YOU WANT TO SWAP FOR THE LAST UNOPENED CASE?';
+    }
+
+
+      // cash out button method
+      function cashOut() {
+      // set secret case as final total
+      document.body.classList.add('confirmation');
+      document.getElementsByClassName('openCaseTxt')[0].innerHTML =  casesRemaining[0].formatRadix();
+      document.getElementsByClassName('openCasetxtBox')[0].innerHTML =  'By taking your case you won:';
+      document.getElementsByClassName('confirmationTxtBox')[0].innerHTML = 'ARE YOU SURE YOU WANT TO TAKE YOUR CASE';
+    }
+
+      // make deal button method
+      function makeDeal() {
+      // set bank deal as final total
+      document.body.classList.add('confirmation');
+      document.getElementsByClassName('openCaseTxt')[0].innerHTML =  bankDealAmountValue.formatRadix();
+      document.getElementsByClassName('openCasetxtBox')[0].innerHTML =  'By taking the Safe Bet, you won:';
+      document.getElementsByClassName('confirmationTxtBox')[0].innerHTML = 'ARE YOU SURE YOU WANT TO TAKE THE SAFE BET?';
+    }
+
+      function collectCase() {
+        removeBodyClasses();
+        document.body.classList.add('collectCase');
+    }
+
+    function changeDecision() {
+      document.body.classList.remove('confirmation');
+    }
+
+    function removeBodyClasses() {
+      while (document.body.classList.length) {
+        document.body.classList.remove(
+          document.body.classList[0]
+        )
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      let case_bg;
+      let case_letter;
+      let case_amount;
+      let case_bg_div;
+      let case_letter_btn;
+      let case_amount_div;
+
+      case_bg_div = document.getElementsByClassName("case_bg")[0].content.querySelector("div");
+      case_letter_btn = document.getElementsByClassName("case_letter")[0].content.querySelector("button");
+      case_amount_div = document.getElementsByClassName("case_amount")[0].content.querySelector("div");
+
+      for (i = 0; i < model.cases.length; i++) {
+        //Create a new node, based on the template:
+        case_bg = document.importNode(case_bg_div, true);
+        case_letter = document.importNode(case_letter_btn, true);
+        case_amount = document.importNode(case_amount_div, true);
+        //append the new node
+        document.getElementsByClassName("containerCasesBg")[0].appendChild(case_bg);
+        document.getElementsByClassName("containerCases")[0].appendChild(case_letter);
+        document.getElementsByClassName("containerMenu")[0].appendChild(case_amount);
+        //get case background image
+
+        if((caseAmts.length - 1) != i) {
+          case_bg.classList.add('caseClosed');
+        }
+  
+        case_bg.classList.add(model.cases[i].yourCase);
+        //enable text button and show case letter
+        case_letter.classList.add('btn-enabled');
+        case_letter.classList.add(model.cases[i].yourCase);
+        case_letter.innerHTML = model.cases[i].aphabet;
+        case_letter.setAttribute("onclick", `caseSelected(${model.cases[i].casePos},${model.cases[i].caseAmt})`);
+        //enable menu value
+        case_amount.classList.add('menu-enabled');
+        case_amount.classList.add(model.cases[i].yourCase);
+        case_amount.innerHTML = model.cases[i].caseAmtMenuAbbreviate;
+      }
+
+      removeBodyClasses();
+      readyToPlayAgain = false;
+
+      setTimeout(function () {
+        console.log(model);
+      }, 100);
+    });
+  </script>
+</body>
+
+
+</html>

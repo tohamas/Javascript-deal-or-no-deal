@@ -1,0 +1,958 @@
+/************************************************************************/
+/* Defaulting document to transparent                                   */
+/************************************************************************/
+* {
+ background: transparent;
+ box-sizing: border-box;
+ backface-visibility: hidden;
+}
+/************************************************************************/
+/************************************************************************/
+/* Setting up dimmed background with centered main                      */
+/************************************************************************/
+html,
+body {
+ overflow: hidden;
+ position: fixed;
+ margin: 0px;
+ padding: 0px;
+ width: 100%;
+ height: 100%;
+ left: 0px;
+ right: 0px;
+ top: 0px;
+ bottom: 0px;
+ background-color: rgba(0, 0, 0, 0.5);
+ display: flex;
+ flex-direction: row;
+ flex-wrap: nowrap;
+ align-items: center;
+ justify-content: center;
+}
+body {
+    opacity: 0;
+    -webkit-animation: startFadein .5s 0.4s forwards;
+    animation: startFadein .5s 0.4s forwards;
+  }
+main {
+ position: absolute;
+ display: block;
+}
+
+/************************************************************************/
+    /* Setting up screen responsiveness ratio                               */
+    /************************************************************************/
+    main {
+        width: 100vmin;
+        height: 100vmin;
+      }
+  
+      /************************************************************************/
+      /************************************************************************/
+      /* Page content styles                                                  */
+      /************************************************************************/
+      [disabled] {
+        filter: grayscale(100%);
+      }
+  
+      /* Performance Optimization: Forces browser to use graphic accelerations */
+      /* Tohamas trick the browser into triggering GPU acceleration for faster animation transitions */
+      main {
+        transform: translateZ(0);
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+        display: block;
+        position: absolute;
+        left: auto;
+        right: auto;
+        top: auto;
+        bottom: auto;
+      }
+  
+      /* Reset */
+      /* Reset */
+      main *,
+      button,
+      button:hover,
+      button:focus,
+      button:active,
+      button:visited {
+        outline: none;
+        border: none;
+        margin: 0;
+        padding: 0;
+        left: auto;
+        right: auto;
+        top: auto;
+        bottom: auto;
+        background: transparent center/contain no-repeat;
+      }
+
+/************************************************************************/
+
+/* Back Ground Image position */
+div.backdrop_image {
+    top: 6%;
+    left: 4%;
+  }
+  
+  
+  /* Menu case select Color */
+  div.menu-disable {
+      color: #bf4011;
+  }
+  
+  button.btn-disable {
+    color: #bf4011;
+  }
+  
+  /* Text Color */
+  span.smallText {
+    color: #FDCB00;
+    position: relative;
+    display: inline-block;
+    line-height: normal;
+  }
+
+
+  /********************************** BUTTON CONTAINER  *********************************/
+  .flex-container {
+    display: flex;
+    flex-wrap: nowrap;
+    position: absolute;
+  }
+
+  .butt_left {
+    margin: 0vmin -0.3vmin 0vmin 0vmin;
+    width: 13vmin;
+    text-align: center;
+    line-height: 13vmin;
+    font-size: 5vmin;
+    background-image: url('../images/button_submit_01.png');
+    background-position: right;
+    z-index: 19;
+    position: relative;
+  }
+
+  .butt_middle {
+    margin: 0vmin 0vmin 0vmin 0vmin;
+    text-align: center;
+    line-height: 13vmin;
+    font-size: 4.3vmin;
+    color: #ffffff;
+    font-family: "arial";
+    text-shadow: 0.3vmin 0.3vmin 0.3vmin black;
+    text-align: center;
+    vertical-align: middle;
+    background-image: url('../images/button_submit_02.png');
+    background-repeat: repeat-x;
+    z-index: 20;
+    position: relative;
+  }
+
+  .butt_right {
+    margin: 0vmin 0vmin 0vmin -0.3vmin;
+    width: 14vmin;
+    text-align: center;
+    line-height: 13vmin;
+    font-size: 5vmin;
+    background-image: url('../images/button_submit_03.png');
+    background-position: left;
+    z-index: 19;
+    position: relative;
+
+  }
+
+
+  /********************************** SWAP CASES CLASS  *********************************/
+
+  .swapCases .finalCase {
+    width: 17vmin;
+    height: 17vmin;
+    background: center/contain url('../images/Case_Partial_PNG.png') no-repeat;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    opacity: 0;
+
+    -webkit-animation: fadein 2s 1.8s forwards;
+    animation: fadein 2s 1.8s forwards;
+
+  }
+
+  .swapCases .btn-disable,
+  .swapCases .btn-enabled,
+  .swapCases .case-selected,
+  .swapCases .case-not-selected,
+  .swapCases .caseOpen {
+    -webkit-animation: fadeout 2s 1s forwards;
+    animation: fadeout 2s 1s forwards;
+
+  }
+
+  .disableAllCases button.case, .confirmation button.case {
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .swapCases .containerCasesBg div:not(.yourCase) {
+    -webkit-animation: fadeout 0.5s 1.8s forwards;
+    animation: fadeout 0.5s 1.8s forwards;
+  }
+
+  button.swapButt {
+    height: 12.8%;
+    transform: scale(1.1);
+    position: absolute;
+    top: 44%;
+    left: 41%;
+    z-index: 31;
+    display: none;
+    opacity: 0;
+  }
+
+  .swapCases .swapButt {
+    display: block;
+    -webkit-animation: startFadein 2s 3s forwards;
+    animation: startFadein 2s 3s forwards;
+  }
+
+  .finalCase {
+    display: none;
+  }
+
+  /********************************** LAYOUT CONTAINER  *********************************/
+  .layout {
+    width: 100%;
+    height: 100%;
+    pointer-events: all;
+    display: block;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+  }
+
+  /********************************** DIALOG CONTAINER  *********************************/
+  .backdrop_image {
+    display: block;
+    position: absolute;
+    height: 85%;
+    width: 92%;
+    background: center/contain url('../images/Illustration_PNG.png') no-repeat;
+    top: 6%;
+    left: 4%;
+  }
+
+  .border_dialog_gold {
+    border: 3.5vmin solid;
+    border-image-source: url('../images/Frame_4K_Gold_PNG.png');
+    border-image-repeat: repeat;
+    border-image-slice: 30;
+    height: 78%;
+    width: 93%;
+    z-index: 15;
+    position: absolute;
+    top: 11.5%;
+    bottom: 0;
+    left: 3.5%;
+    right: 0;
+  }
+
+  /********************************** TEXT BOX CONTAINER  *********************************/
+  .txtBox {
+    background-color: rgba(0, 0, 0, 0.8);
+    border-radius: 3vmin;
+    font-family: "arial";
+    color: #ffffff;
+    left: 0;
+    right: 0;
+    margin: auto;
+    z-index: 35;
+    width: 85%;
+    position: absolute;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    vertical-align: middle;
+    word-wrap: break-word;
+    border: 3.5vmin solid;
+    border-image-source: url('../images/Frame_4K_GoldThin_PNG.png');
+    border-image-repeat: repeat;
+    border-image-slice: 30;
+    border-radius: 1vmin;
+    display: table-cell;
+    bottom: 5%;
+    font-size: 3.4vmin;
+  }
+
+  /********************************** MENU CONTAINER  *********************************/
+  .containerMenu {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    width: 20%;
+    top: 27%;
+    left: 11%;
+    position: absolute;
+    z-index: 15;
+  }
+
+  .menuBox {
+    background-color: rgba(0, 0, 0, 0.8);
+    border-radius: 2vmin;
+    font-family: "arial";
+    color: #ffffff;
+    height: 57vmin;
+    width: 25vmin;
+    left: 9%;
+    z-index: 14;
+    top: 20%;
+    position: absolute;
+    font-size: 4vmin;
+    opacity: 0;
+    -webkit-animation: startFadein 0.5s 0.1s forwards;
+    animation: startFadein 0.5s 0.1s forwards;
+  }
+
+  .caseMenu {
+    width: 10vmin;
+    z-index: 20;
+    margin: 0.1vmin;
+    font-size: 3.3vmin;
+    font-family: "arial";
+    color: #ffd40b;
+    text-align: center;
+    opacity: 0;
+    -webkit-animation: startFadein 0.5s 0.1s forwards;
+    animation: startFadein 0.5s 0.1s forwards;
+
+  }
+
+  .menu-enabled {
+    color: #ffd40b;
+  }
+
+  .menu-disable {
+    color: #cd010b;
+    text-decoration: line-through;
+  }
+
+  .prizeMenuTitle {
+    color: #ffffff;
+    font-size: 2vmin;
+    font-family: "arial";
+    position: absolute;
+    text-align: center;
+    z-index: 20;
+    top: 23%;
+    left: 11%;
+    width: 20vmin;
+    opacity: 0;
+    -webkit-animation: startFadein 0.5s 1s forwards;
+    animation: startFadein 0.5s 1s forwards;
+  }
+
+  /********************************** HEADER  *********************************/
+  .header_top {
+    height: 13vmin;
+    background: center/contain url('../images/Header_Game_PNG.png') no-repeat;
+    z-index: 20;
+    display: block;
+    position: absolute;
+    top: 5%;
+    left: 0;
+    right: 0;
+    opacity: 0;
+    -webkit-animation: startFadein 1s 0.3s forwards;
+    animation: startFadein 1s 0.3s forwards;
+  }
+
+  /********************************** CASES  *********************************/
+  .caseClosed {
+    background: center/contain url('../images/Case_Closed_PNG.png') no-repeat;
+  }
+
+  .caseOpen {
+    background: center/contain url('../images/Case_Open_Small_PNG.png') no-repeat;
+  }
+
+  .btn-enabled {
+    color: #ffffff;
+    text-shadow: 1px 0px 10px black;
+    font-size: 4vmin;
+  }
+
+  .btn-disable {
+    cursor: not-allowed;
+    pointer-events: none;
+    color: #cd010b;
+    font-size: 5vmin;
+    -webkit-animation: textBounce 0.8s 1s forwards;
+    animation: textBounce 0.8s 1s forwards;
+  }
+
+  .swapBtn-disable {
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .case-not-selected {
+    text-shadow: 0.3vmin 0.3vmin 0.3vmin black;
+    font-size: 4vmin;
+
+  }
+
+.case-selected {
+  -webkit-text-fill-color: #cd010b;
+  -webkit-text-stroke-width: 0.2vmin;
+  -webkit-text-stroke-color: #ffffff;
+  font-size: 5vmin;
+  font-weight: 900;
+  text-shadow: 1px 0px 10px black;
+    -webkit-animation: textBounce 0.8s 1s forwards;
+    animation: textBounce 0.8s 1s forwards;
+  }
+
+  .containerCases {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    width: 52%;
+    height: 47%;
+    top: 21%;
+    left: 39.5%;
+    position: absolute;
+    z-index: 15;
+    opacity: 0;
+    -webkit-animation: startFadein 0.5s 0.1s forwards;
+    animation: startFadein 0.5s 0.1s forwards;
+  }
+
+  .containerCasesBg {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    width: 52%;
+    height: 47%;
+    top: 21%;
+    left: 39.5%;
+    position: absolute;
+    z-index: 15;
+    opacity: 0;
+    -webkit-animation: startFadein 0.5s 0.1s forwards;
+    animation: startFadein 0.5s 0.1s forwards;
+  }
+
+  button.case, .caseBg, .caseTxt {
+    width: 17vmin;
+    height: 17vmin;
+    z-index: 20;
+    font-family: "arial";
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+.containerCasesBg .yourCase {
+    width: 22vmin;
+    height: 22vmin;
+    z-index: 20;
+    position: absolute;
+    left: -56%;
+    top: 96%;
+    background: center/contain url('../images/Case_Closed_PNG.png') no-repeat;
+    color: rgba(0, 0, 0, 0);
+    text-size-adjust: 0.1%;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+   .yourCase {
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+  .containerCases button.yourCase,
+  .containerCases .yourCase {
+    width: 22vmin;
+    height: 22vmin;
+    z-index: 20;
+    position: absolute;
+    left: -56%;
+    top: 96%;
+  }
+
+
+  /********************************** COLLECT CASE CLASS  *********************************/
+  .collectCase .openCasePos {
+    height: 22%;
+    top: 60%;
+    z-index: 8;
+    left: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    opacity: 0;
+    -webkit-animation: startFadein 1s 0.3s forwards;
+    animation: startFadein 1s 0.3s forwards;
+  }
+
+  .collectCase .openCaseTxt {
+    font-family: "arial";
+    /* Fall Back */
+    color: #ffffff;
+    /*  ONLY SHOW IN WEBKIT BROWSER */
+    background: linear-gradient(#FF8300, #FDFAC9, #FF8300);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    -moz-text-fill-color: transparent;
+    -o-text-fill-color: transparent;
+    -ms-text-fill-color: transparent;
+    text-fill-color: transparent;
+    font-size: 11vmin;
+    position: absolute;
+
+  }
+
+  .collectCase .openCaseCreditTxt {
+    text-shadow: 0.3vmin 0.3vmin 0.3vmin black;
+    font-family: "arial";
+    font-size: 4vmin;
+    color: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    left: 0;
+    right: 0;
+    margin: auto;
+    top: 75%;
+    position: absolute;
+    z-index: 20;
+    opacity: 0;
+    font-weight: bolder;
+    -webkit-animation: startFadein 1s 0.3s forwards;
+    animation: startFadein 1s 0.3s forwards;
+
+  }
+
+  .collectCase .openCasetxtBox {
+    text-shadow: 0.3vmin 0.3vmin 0.3vmin black;
+    font-family: "arial";
+    color: #ffffff;
+    left: 0;
+    right: 0;
+    margin: auto;
+    z-index: 35;
+    width: 85%;
+    position: absolute;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    vertical-align: middle;
+    word-wrap: break-word;
+    display: table-cell;
+    top: 55%;
+    font-size: 5vmin;
+    opacity: 0;
+    font-weight: bolder;
+    -webkit-animation: startFadein 1s 0.3s forwards;
+    animation: startFadein 1s 0.3s forwards;
+  }
+
+  .collectCase .header_top {
+    background: center/contain url('../images/Header_Congrats_PNG.png') no-repeat;
+    opacity: 0;
+    -webkit-animation: startFadein 1s 0.3s forwards;
+    animation: startFadein 1s 0.3s forwards;
+  }
+
+  .collectCase .openCaseImg {
+    height: 39vmin;
+    background: center/contain url('../images/Case_Open_Large_PNG.png') no-repeat;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 20%;
+    left: 1%;
+    right: 0;
+    opacity: 0;
+    -webkit-animation: startFadein 1s 0.3s forwards;
+    animation: startFadein 1s 0.3s forwards;
+  }
+
+  .collectCase .creditsImg {
+    height: 30vmin;
+    background: center/contain url('../images/Illustration_Reward_PNG.png') no-repeat;
+    z-index: 19;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 30%;
+    left: 3%;
+    right: 0;
+    opacity: 0;
+    -webkit-animation: startFadein 1s 0.3s forwards;
+    animation: startFadein 1s 0.3s forwards;
+  }
+
+
+
+
+  .openCasePos,
+  .openCasetxtBox,
+  .openCaseImg,
+  .creditsImg,
+  .openCaseCreditTxt {
+    display: none;
+  }
+
+  .collectCase .containerCasesBg,
+  .collectCase .containerCases,
+  .collectCase .containerMenu,
+  .collectCase .menuBox,
+  .collectCase .txtBox,
+  .collectCase .prizeMenuTitle {
+    display: none;
+  }
+
+
+  .openCasePos,
+  .openCaseImg {
+    display: none;
+  }
+
+  /********************************** DealAmount CONTAINER  *********************************/
+  .dealAmount_container {
+    height: 12vmin;
+    background: center/contain url('../images/bg_DealAmount_PNG.png') no-repeat;
+    z-index: 19;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 71%;
+    left: 56.4%;
+    right: 0;
+    width: 34vmin;
+    transform: scale(1.2);
+  }
+
+  .dealAmountTxtPos {
+    height: 22%;
+    top: 64%;
+    z-index: 20;
+    top: 71.1%;
+    left: 73.5%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    opacity: 0;
+    -webkit-animation: startFadein 1s 0.3s forwards;
+    animation: startFadein 1s 0.3s forwards;
+  }
+
+  .dealAmountTxt {
+    height: 12vmin;
+    z-index: 20;
+    font-weight: bold;
+    position: absolute;
+    /* Fall Back */
+    color: #ffffff;
+    /*  ONLY SHOW IN WEBKIT BROWSER */
+    background: linear-gradient(#FF8300, #FDFAC9, #FF8300);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    -moz-text-fill-color: transparent;
+    -o-text-fill-color: transparent;
+    -ms-text-fill-color: transparent;
+    text-fill-color: transparent;
+    font-family: "arial";
+    font-size: 6vmin;
+    display: none;
+  }
+
+
+  /********************************** START CAMPAIGN CLASS  *********************************/
+  .startCampaign .dealAmountTxtPos {
+    top: 71.1%;
+    left: 73.5%;
+    display: flex;
+  }
+
+  .startCampaign .dealAmount_container {
+    top: 71.1%;
+    display: flex;
+  }
+
+  .startCampaign .dealAmountTxt_stroke,
+  .startCampaign .dealAmountTxt {
+    display: block;
+  }
+
+  button.takeButt {
+    top: 77%;
+    left: -1%;
+    width: 55%;
+    z-index: 31;
+    display: none;
+  }
+
+  button.dealButt {
+    top: 77%;
+    left: 45.5%;
+    width: 60%;
+    z-index: 31;
+    display: none;
+  }
+
+  .startCampaign .takeButt,
+  .startCampaign .dealButt {
+    display: block;
+    height: 12.8%;
+    transform: scale(0.9);
+    position: absolute;
+    right: 0;
+  }
+
+  .dealButt .butt_middle {
+    padding-left: 5vmin;
+    padding-right: 5vmin;
+  }
+
+  .startCampaign .txtBox {
+    display: none;
+  }
+
+  /********************************** CONFIRMATION CLASS  *********************************/
+  button.yesButt {
+    left: 55%;
+    top: 68%;
+    width: 30%;
+    z-index: 36;
+    display: none;
+  }
+
+  button.noButt {
+    left: 16%;
+    top: 68%;
+    width: 30%;
+    z-index: 36;
+    display: none;
+  }
+
+  .confirmation .yesButt,
+  .confirmation .noButt {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 12.8%;
+    transform: scale(1.1);
+    position: absolute;
+    right: 0;
+  }
+
+  .confirmation .takeButt,
+  .confirmation .nextButt,
+  .confirmation .dealButt {
+    filter: brightness(0.3);
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .confirmation .confirmationTxtBox {
+    display: table-cell;
+    bottom: 25%;
+    padding-top: 10%;
+    padding-bottom: 10%;
+    font-size: 6vmin;
+  }
+
+  .confirmationTxtBox {
+    background-color: rgba(0, 0, 0, 0.8);
+    border-radius: 3vmin;
+    font-family: "arial";
+    color: #ffffff;
+    left: 0;
+    right: 0;
+    margin: auto;
+    z-index: 35;
+    width: 85%;
+    position: absolute;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    vertical-align: middle;
+    word-wrap: break-word;
+    border: 3.5vmin solid;
+    border-image-source: url('../images/Frame_4K_GoldThin_PNG.png');
+    border-image-repeat: repeat;
+    border-image-slice: 30;
+    display: none;
+  }
+
+  .confirmation .txtBox {
+    display: none;
+  }
+
+
+
+  /********************************** SPAN TEXT CLASS  *********************************/
+  .smallText {
+    color: #FDCB00;
+    display: inline-block;
+    line-height: normal;
+  }
+
+  .smallText {
+    display: none;
+  }
+
+  .upperCaseText {
+    text-transform: uppercase;
+    display: inline-block;
+    line-height: normal;
+  }
+
+  .bounce,
+  .bounceAgain {
+    -webkit-animation: textBounce 0.8s 1s forwards;
+    animation: textBounce 0.8s 1s forwards;
+  }
+
+
+  @-webkit-keyframes textBounce {
+    0% {
+      transform: scale(0.8);
+      -webkit-animation-timing-function: ease-out;
+    }
+
+    5% {
+      transform: scale(.1);
+      -webkit-animation-timing-function: ease;
+    }
+
+    40% {
+      transform: scale(1.25);
+      -webkit-animation-timing-function: ease-in;
+    }
+
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  @keyframes textBounce {
+    0% {
+      transform: scale(0.8);
+      animation-timing-function: ease-out;
+    }
+
+    5% {
+      transform: scale(.1);
+      animation-timing-function: ease;
+    }
+
+    40% {
+      transform: scale(1.25);
+      animation-timing-function: ease-in;
+    }
+
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  @-webkit-keyframes fadeout {
+    0% {
+
+      opacity: 1;
+    }
+
+
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes fadeout {
+    0% {
+
+      opacity: 1;
+    }
+
+
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @-webkit-keyframes fadein {
+    0% {
+      opacity: 0;
+      transform: scale(1);
+    }
+
+    10% {
+      opacity: 1;
+    }
+
+    100% {
+      opacity: 1;
+      top: 30%;
+      left: 55%;
+      transform: scale(2.5);
+    }
+  }
+
+  @keyframes fadein {
+    0% {
+
+      opacity: 0;
+      transform: scale(1);
+    }
+
+    10% {
+      opacity: 1;
+    }
+
+    100% {
+      opacity: 1;
+      top: 30%;
+      left: 55%;
+      transform: scale(2.5);
+    }
+  }
+
+  @-webkit-keyframes startFadein {
+    0% {
+      opacity: 0;
+    }
+
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes startFadein {
+    0% {
+      opacity: 0;
+    }
+
+    100% {
+      opacity: 1;
+    }
+  }
+  

@@ -1,0 +1,2702 @@
+<!DOCTYPE html><html><head>
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover" name="viewport">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- ** Build: Common js/lib files -->
+<script>
+window.buildId = "95be853d12955665de5b97a46d9f7bdeeeff374727d5779f212668bccc731c49_1693072680043";
+// Source: common/bootstrap/error-logging.js
+(function() {
+// Global Error Handling: Hooks logging into global error events
+function jsonSafe(v) {
+  try {
+    JSON.stringify(v);
+    return v;
+  } catch (e) {
+    return 'UNSERIALIZABLE';
+  }
+} // Ensures a serializable value
+
+window.addEventListener('error', e => console.error({
+  message: jsonSafe(e.message),
+  filename: e.filename,
+  lineno: e.lineno,
+  colno: e.colno,
+  error: jsonSafe(e.error),
+}));
+
+['unhandledrejection', 'rejectionhandled'].forEach(promiseEvent =>
+  window.addEventListener(promiseEvent, e => console.error({
+    type: promiseEvent,
+    error: jsonSafe(e.reason),
+  }))
+);
+
+// Hook into console logging and forwards messaging to device
+document.addEventListener('ready', () => {
+  var loggers = {
+    log: 'LogInfo',
+    warn: 'LogWarning',
+    error: 'LogError'
+  };
+  Object.keys(loggers)
+    .forEach(method =>
+      (logger => console[method] = function() {
+        try {
+          var items = Array.from(arguments);
+          logger.apply(console, items);
+          DoubleDown.api[loggers[method]](
+            JSON.stringify(items.map(v => jsonSafe(v)))
+          )
+        } catch (error) {
+          logger.call(console, 'Logging Failed: ', error);
+        }
+      })(console[method])
+    );
+});
+})();
+// Source: common/polyfills/Element.prototype.isVisibleOnScreen.js
+(function() {
+Element.prototype.isVisibleOnScreen = function() {
+  var rects = (this.getClientRects() || []);
+  var inFlow = !!(this.offsetWidth || this.offsetHeight || rects.length);
+  return inFlow;
+  /*
+  var inView = rects.some(rect =>
+    rect.right > 0 && rect.bottom > 0 &&
+    rect.left < window.innerWidth &&
+    rect.right > window.innerHeight
+  )
+  */
+}
+})();
+// Source: common/polyfills/flatmap.js
+(function() {
+if (!Array.prototype.flatMap) {
+  Object.defineProperty(Array.prototype, 'flatMap', {
+    value: function(callback, thisArg) {
+      var self = thisArg || this;
+      if (self === null) {
+        throw new TypeError('Array.prototype.flatMap called on null or undefined');
+      }
+      if (typeof callback !== 'function') {
+        throw new TypeError(callback + ' is not a function');
+      }
+      var list = [];
+      var o = Object(self);
+      var len = o.length >>> 0;
+      for (var k = 0; k < len; ++k) {
+        if (k in o) {
+          var part_list = callback.call(self, o[k], k, o);
+          list = list.concat(part_list);
+        }
+      }
+      return list;
+    }
+  });
+}
+})();
+// Source: common/polyfills/number-formats.js
+(function() {
+Number.prototype.formatRadix = function(delimiter) {
+  return (this.toString().match(/-?\d+/g) || ['0'])
+    .map((v, i) => i === 0 ?
+      v.split('').reverse().join('')
+      .replace(/(\d{3})(?!-|$)/g, '$1' + (delimiter || ','))
+      .split('').reverse().join('') :
+      v
+    ).join('.');
+};
+
+Number.prototype.formatMoney = function(symbol, delimiter) {
+  var values = this.formatRadix(delimiter).split('.');
+  var dollars = values[0];
+  var cents = (values[1] || '0').substr(0, 2);
+  return (symbol || '') + dollars + '.' + cents + (cents.length < 2 ? '0' : '');
+};
+
+Number.prototype.abbreviateNum = function() {
+  var suffixes = ["", "K", "M", "B", "T"];
+  var suffixNum = this.toString().length < 7 ? Math.floor(this.toString().length / 4) : Math.floor(this.toString().length / 3);
+  var shortValue = parseFloat((suffixNum != 0 ? (this / Math.pow(1000, suffixNum)) : this).toPrecision(3));
+  return shortValue + suffixes[suffixNum];
+};
+
+String.prototype.parseNumber = function() {
+  return parseFloat(this || '0');
+};
+
+String.prototype.abbreviateNum = function() {
+  return this.parseNumber().abbreviateNum();
+};
+
+String.prototype.formatRadix = function(delimiter) {
+  return this.parseNumber().formatRadix(delimiter);
+}
+
+String.prototype.formatMoney = function(symbol, delimiter) {
+  return this.parseNumber().formatMoney(symbol, delimiter);
+}
+})();
+// Source: common/api/Namespace.js
+(function() {
+/******************************************************************************
+/* Namespace
+/*
+/*  Creates an object that self-propagates empty indexes. This allows values to be
+/*  set at any nested index without having to initialize each value in the chain.
+/*
+/* Example:
+/*  window.DoubleDown = new Namespace();
+/*  DoubleDown.app.subsection.MyClass = class MyClass {};
+/*  // "app" and "subsection" don't throw errors when accessed
+/*
+/* Notes:
+/*  Using namespacing in place of dependency resolution (e.g. require, etc).
+/*  After discussion it was decided this would have the lowest level of ramp-up for
+/*  new developers.
+/******************************************************************************/
+
+class Namespace {
+  constructor() {
+    return new Proxy({}, {
+      get: (obj, key) => {
+        if (key === 'toJSON') {
+          return () => 'NOT SERIALIZABLE';
+        }
+        if (!(key in obj)) {
+          obj[key] = new Namespace();
+        }
+        return obj[key];
+      }
+    });
+  }
+}
+this.DoubleDown = new Namespace();
+})();
+// Source: common/bootstrap/ready.js
+(function() {
+document.ready = document.readyState === 'complete' ?
+  Promise.resolve(document.body) :
+  new Promise(r => document.addEventListener('DOMContentLoaded', () => r(document.body)));
+
+DoubleDown.app.ready = Promise.all([
+  document.ready,
+  new Promise(ready => document.addEventListener('ready', () => ready())),
+  new Promise(ready => {
+    var timeout = setTimeout(() => ready(), 5 * 1000);
+    document.addEventListener('skin-ready', () => {
+      clearTimeout(timeout);
+      ready();
+    })
+  })
+])
+})();
+// Source: common/api/DoubleDown/DoubleDown.Ajax.js
+(function() {
+/******************************************************************************
+/* DoubleDown.Ajax
+/*
+/* Provides simplified wrappers around javascript XMLHttpRequests
+/*
+/* Methods:
+/*  Ajax.request(method, url[, body[, headers]]) Resolves a Promise with the result of an XMLHttpRequest call
+/*  Ajax.get(url[, headers])                     Resolves a Promise with the result of a GET http request
+/*  Ajax.delete(url[, headers])                  Resolves a Promise with the result of a DELETE http request
+/*  Ajax.post(url, body[, headers])              Resolves a Promise with the result of a POST http request
+/*  Ajax.patch(url, body[, headers])             Resolves a Promise with the result of a PATCH http request
+/*  Ajax.put(url, body[, headers])               Resolves a Promise with the result of a PUT http request
+/*  Ajax.download(url)                           Resolves a Promise with the contents of a document download
+/*
+/* Example:
+/*  Ajax.download('index.css')
+/*      .then(css => {
+/*        document.head.appendChild(
+/*          document.createElement('style')
+/*        ).appendChild(
+/*          document.createTextNode(css)
+/*        )
+/*      });
+/******************************************************************************/
+
+DoubleDown.Ajax = class Ajax {
+  static request(method, url, body, headers) {
+    return new Promise((resolve, reject) => {
+      var request = new XMLHttpRequest();
+      request.open(method, url, true);
+      Array.from(Object.keys(headers || {})).forEach(name => {
+        request.setRequestHeader(name, headers[name]);
+      });
+      request.onreadystatechange = () => {
+        if (request.readyState !== XMLHttpRequest.DONE) {
+          return;
+        }
+        var response = {
+          url: url,
+          status: request.status,
+          response: request.responseText,
+          headers: request.getAllResponseHeaders()
+        };
+        if (request.status < 200 || request.status >= 400) {
+          return reject(response);
+        }
+        return resolve(response);
+      }
+      if (body == null) {
+        request.send();
+      } else {
+        request.send(body);
+      }
+    });
+  }
+
+  static head(url, headers) {
+    return Ajax.request('HEAD', url, null, headers);
+  }
+  static get(url, headers) {
+    return Ajax.request("GET", url, null, headers);
+  }
+  static delete(url, headers) {
+    return Ajax.request("DELETE", url, null, headers);
+  }
+  static post(url, body, headers) {
+    return Ajax.request("POST", url, body, headers);
+  }
+  static put(url, body, headers) {
+    return Ajax.request("PUT", url, body, headers);
+  }
+  static patch(url, body, headers) {
+    return Ajax.request("PATCH", url, body, headers);
+  }
+  static download(url) {
+    return Ajax.get(url).then(r => r.response);
+  }
+}
+})();
+// Source: common/api/DoubleDown/DoubleDown.CountDown.js
+(function() {
+// DoubleDown.CountDown
+// Adds a countdown to a view that will automatically tick days/hours/minutes/seconds
+// Day remove itself when day ticker reaches 0
+// Methods:
+// constructor(endtime, view, hourPath, minPath)   Attatches the counter to the view and updates the specific hour/min value
+// Example:
+// new DoubleDown.CountDown('jan-10...', DoubleDown.app.view, 'countdown.hoursLeft', 'countdown.minsLeft')
+
+DoubleDown.CountDown = class CountDown {
+  constructor(endtime, view, dayPath, hourPath, minPath, secPath) {
+    function updateClock() {
+      var t = CountDown.getTimeRemaining(endtime);
+      var timedout = t.total <= 0;
+      var removeDayMins = t.days < 1;
+      var removeHourSecs = (t.days < 1) && (t.hours < 1);
+
+      if (timedout) {
+        clearInterval(interval);
+      }
+
+      view.set(dayPath, (removeDayMins ? '' : (t.days.toString().slice(-2) + 'D')));
+      view.set(hourPath, (removeHourSecs ? '' : (t.hours.toString().slice(-2) + 'H')));
+      view.set(minPath, (!removeDayMins ? '' : ((timedout ? 0 : t.minutes)).toString().slice(-2) + 'M'));
+      view.set(secPath, (!removeHourSecs ? '' : ((timedout ? 0 : t.seconds)).toString().slice(-2) + 'S'));
+    }
+    updateClock();
+    var interval = setInterval(updateClock, 1000);
+  }
+
+  static getTimeRemaining(endtime) {
+    var t = Date.parse(endtime) - new Date().valueOf();
+    var days = Math.floor(t / (1000 * 60 * 60 * 24));
+    var hours = Math.floor((t / (1000 * 60 * 60)) % 24);
+    var minutes = Math.floor((t / 1000 / 60) % 60);
+    var seconds = Math.floor((t / 1000) % 60);
+
+    return {
+      'total': t,
+      'days': days,
+      'hours': hours,
+      'minutes': minutes,
+      'seconds': seconds
+    };
+  }
+}
+})();
+// Source: common/api/DoubleDown/DoubleDown.Interactions.js
+(function() {
+/******************************************************************************
+/* DoubleDown.Interactions
+/*
+/* Provides user interaction functionality
+/*
+/* Methods:
+/*  addSuspend()                        Suspends further user interactions until removeSuspend() is called
+/*  removeSuspend()                     Removes a previous suspension
+/*  executeCommand(command, context)    Executes a function that results in a promise or accepts promise directly
+/*
+/* Event parameters on the DOM (i.e. onclick) should be replaced with interaction-event (i.e. interaction-click)
+/*
+/* Example:
+/*  <div interaction-click="DoubleDown.app.clickHandler()">Click Me</div>
+/******************************************************************************/
+
+// Add events to support here
+const EventWhitelist = [
+  'click'
+];
+const InteractionPrefix = 'interaction-';
+const ExternalEventPrefix = 'external-';
+
+DoubleDown.Interactions = class Interactions {
+
+  static addSuspend() {
+    InteractionBlockers.push(null);
+    console.log('User-Interaction:', 'suspended');
+  }
+
+  static removeSuspend() {
+    InteractionBlockers.pop();
+    console.log('User-Interaction:', 'resumed');
+  }
+
+  static executeCommand(command, context) {
+    if (InteractionBlockers.length) {
+      console.log('User-Interaction:', 'blocked');
+      return;
+    }
+    var func = Interactions.resolveCommand(command);
+    var result = func.call(context, context);
+    if (result instanceof Promise) {
+      Interactions.addSuspend();
+      result.finally(() => Interactions.removeSuspend());
+    }
+    return result;
+  }
+
+  static resolveCommand(command) {
+    // If it's already a function then return
+    if (typeof(command) === 'function') {
+      return command;
+    }
+
+    // If it's already a resolved promise then wrap and return
+    if (command instanceof Promise) {
+      return (() => command);
+    }
+
+    // If it's not a string then it can't be parsed.
+    var failMessage = 'Unable to parse command';
+    if (typeof(command) !== 'string') {
+      throw failMessage;
+    }
+    command = command.replace(/^\s+|\s+$/g, '');
+
+    // If it's referencing a global member function, parse from window
+    if (/^(\w+\.)*\w+$/.exec(command)) {
+      var parts = command.split(/\./g);
+      var value = window;
+      while (value != null && parts.length > 1) {
+        value = value[parts.shift()];
+      }
+      if (!value) {
+        throw failMessage;
+      }
+      var method = value[parts.shift()];
+      if (typeof(method) !== 'function') {
+        throw failMessage;
+      }
+      return method.bind(value);
+    }
+
+    // If it's making a global function call, wrap in function and return value
+    if (/^(\w+\.)*\w+\([^\)]*\)$/.exec(command)) {
+      command = 'return ' + command;
+      return new Function(command);
+    }
+
+    // Otherwise we are not supporting it
+    throw 'Unsupported handler/command';
+  }
+
+  static registerInteractions(dom) {
+    EventWhitelist
+      .map(name => {
+        return {
+          name: name,
+          attr: InteractionPrefix + name
+        };
+      })
+      .forEach(evt =>
+        dom.addEventListener(evt.name, e => {
+          var element = e.target;
+          while (element && (!element.matches || !element.matches('[' + evt.attr + ']'))) {
+            element = element.parentNode;
+          }
+          if (element == null) {
+            return;
+          }
+          console.log('User-Interaction:', evt.name)
+          Interactions.executeCommand(element.getAttribute(evt.attr), e);
+        })
+      );
+  }
+
+  static registerExternalEvents(dom, externalEvents) {
+    externalEvents = externalEvents ||
+      Array.from(dom.querySelectorAll('*'))
+      .flatMap(e =>
+        Array.from(e.attributes)
+        .map(a => a.name)
+      )
+      .filter(n => n && n.startsWith(ExternalEventPrefix))
+      .reduce((a, n) => a.indexOf(n) >= 0 ? a : a.push(n) && a || a, [])
+      .map(name => name.substr(ExternalEventPrefix.length));
+
+    externalEvents.forEach(external =>
+      dom.addEventListener(external, e => {
+        var attr = ExternalEventPrefix + external;
+        var targets = Array.from(dom.querySelectorAll('[' + attr + ']'))
+          .filter(target => target.isVisibleOnScreen());
+
+        if (!targets.length) {
+          return;
+        }
+        var target = targets[0];
+        var name = target.getAttribute(attr);
+        switch (name) {
+          case 'click':
+            target.click();
+            break;
+          default:
+            target.dispatchEvent(new CustomEvent(name));
+            break;
+        }
+      })
+    );
+  }
+}
+
+// Singleton blocker queue
+const InteractionBlockers = [];
+})();
+// Source: common/api/DoubleDown/DoubleDown.Product.js
+(function() {
+/******************************************************************************
+/* DoubleDown.Product
+/*
+/* Automates resolution of product IDs from DDNA config and wraps basic api wireups
+/*
+/* Methods:
+/*  static fromConfig(config[, keys])    Scans the config for product ids speciried by "keys" or defaulting to productIDx
+/*  purchase()                           Calls the DoubleDown.api.PurchaseProduct() and suspends user interactions
+/*
+/******************************************************************************/
+
+DoubleDown.Product = class Product {
+  constructor(key, query, data) {
+    Object.assign(this, data || {});
+    this.key = key;
+    this.query = query;
+    this.exists = !!data; // false if data is empty otherwise true
+  }
+
+  purchase() {
+    return DoubleDown.Interactions.executeCommand(
+      () => DoubleDown.api.PurchaseProduct(this.productId)
+    );
+  }
+
+  static getKeys(config) {
+    return Object.keys(config)
+      .filter(k => /^productid\d+$/gi.exec(k))
+      .sort((a, b) => parseInt(a.match(/\d+$/)[0]) > parseInt(b.match(/\d+$/)[0]) ? 1 : -1);
+  }
+
+  static resolveProducts(config, keys, data) {
+    return keys
+      .map(key => new Product(
+        key,
+        config[key],
+        data[
+          config[key]
+          .split(/,/g)
+          .find(id => data[id])
+        ]
+      ));
+  }
+
+  static fromConfig(config, keys) {
+    return new Promise((resolve, reject) => {
+      keys = keys || Product.getKeys(config);
+      var queries = keys.map(k => (config[k] = (config[k] || '')));
+      DoubleDown.api.ResolveProducts(queries)
+        .then(data => {
+          var products = Product.resolveProducts(config, keys, data);
+          if (products.some(p => !p.exists)) {
+            reject(products);
+          } else {
+            resolve(products);
+          }
+          return products;
+        }).catch(reject);
+    });
+  }
+}
+})();
+// Source: common/api/DoubleDown/DoubleDown.Skin.js
+(function() {
+/******************************************************************************
+/* DoubleDown.Skin
+/*
+/* Adds methods for "just-in-time" asset preloading
+/*
+/* Methods:
+/*  preload(name)         Preloads asset groups containing the specified name
+/*  preloadDocument()     (do not use) Preloads all current backgroudn images for the document (called during startup)
+/*
+/* Eleemnts:
+/*  <skin-preload name=""></skin-preload>     This should contain a group of <skin-asset /> elements that will be preloaded with Skin.preload(name)
+/*  <skin-asset src="" />                     These should be placed in <skin-preload></skin-preload> elements to be preloaded with Skin.preload(name)
+/*
+/* Example:
+/*  <skin-preload name="campaign-phase-1">
+/*    <skin-asset url="phase-one-image.jpg" />
+/*    <skin-asset url="phase-one-image2.jpg" />
+/*  </skin-preload>
+/*
+/*  <script>
+/*    DoubleDown.app.startPhase = function(number) {
+/*      DoubleDown.Skin
+/*        .preload('campaign-phase-' + number)
+/*        .then(() => {
+/*          // Continue loading the phase...
+/*        })
+/*    }
+/*  &lt;/script>
+/******************************************************************************/
+
+
+DoubleDown.Skin = class Skin {
+  static preload(name) {
+    const urlClean = /^\s*url\s*\(\s*'?\s*|\s*'?\s*\)\s*$/g;
+    const directUrl = /([\\\/]skins)[\\\/][^\\\/]+[\\\/](.+)$/i;
+    const indirectUrl = /^\s*([^\\\/])/;
+    return Promise.all(
+        Array.from(document.querySelectorAll(GroupElementName + '[name~=' + name + ']'))
+        .flatMap(group => Array.from(group.querySelectorAll(AssetElementName)))
+        .map(asset => asset.getAttribute('src'))
+        .filter(url => url && (typeof(url) === 'string'))
+        .map(url => url.replace(urlClean, ''))
+        .map(url => DoubleDown.Skin.preloadImage(url)
+          .catch(url => DoubleDown.Skin.preloadImage(
+            url.match(directUrl) ?
+            url.replace(directUrl, '$1/default/$2') :
+            url.replace(indirectUrl, '../default/$1')
+          ))
+          .then(url => {
+            return {
+              url: url,
+              result: true
+            };
+          })
+          .catch(url => {
+            return {
+              url: url,
+              result: false
+            };
+          })
+        )
+      )
+      .then(results => {
+        if (!results || !results.length) {
+          return console.error('No assets were found to preload for: ' + (name || ''));
+        }
+        console.log(
+          'Preloaded: ', name,
+          results.map(r => (r.result ? 'Success: ' : 'Failed: ') + r.url)
+        )
+      });
+  }
+
+  static preloadImage(url) {
+    return new Promise((loaded, failed) => {
+      var img = new Image();
+      img.onload = () => loaded(url);
+      img.onerror = () => failed(url);
+      img.src = url;
+    });
+  }
+
+  static preloadDocument() {
+    const urlSearch = /url\s*\(\s*['"]?[^'"]+['"]?\s*\)/ig;
+    const urlTrim = /^url\s*\(\s*['"]?|["']?\s*\)$/ig;
+    var elements = Array.from(document.querySelectorAll('body *'));
+    var styles = elements
+      .flatMap(e => ['', ':before', ':after'] // Search each element and its before & after...
+        .map(p => getComputedStyle(e, p)) // For the current computed style...
+        .filter(v => v)) // If any...
+    var urls = styles // From each style...
+      .flatMap(s => ['backgroundImage', 'listStyleImage', 'borderImage', 'maskImage'] // Check these properties...
+        .flatMap(p => (s[p] || '').match(urlSearch) || []) // For URLs...
+      ).filter((v, i, t) => v && t.indexOf(v) === i) // And get rid of dupes.
+    return Promise.all(
+      urls.map(url =>
+        new Promise((resolve, reject) => {
+          var img = new Image();
+          img.onload = () => resolve();
+          img.onerror = () => reject();
+          img.src = url.replace(urlTrim, '');
+        })
+        .then(() => true)
+        .catch(error => error)
+      )
+    ).then(status => {
+      var report = urls
+        .map((url, i) => [
+          (status[i] === true ? 'Loaded:' : 'Failed:'),
+          url,
+          '(' + (status[i] || '') + ')'
+        ].join(' '));
+      console.log('Document Preload: ', report);
+    })
+  }
+}
+
+// Initialize custom elements
+const GroupElementName = 'skin-preload';
+const AssetElementName = 'skin-asset';
+document.createElement(GroupElementName);
+document.createElement(AssetElementName);
+})();
+// Source: common/api/DoubleDown/DoubleDown.View.js
+(function() {
+/******************************************************************************
+/* DoubleDown.View
+/*
+/* Binds data values to an element's contents
+/* Member values are noted in brackets like so: {memberA.memberB.memberC}
+/*
+/* Methods:
+/*  map(data)         Sets binding values from the data object
+/*  get(path)         Gets the current value for the binding path
+/*  set(path, value)  Sets the bindings for the path to the value
+/*
+/* Example:
+/*  <div id="view">Some value: {value}. Some other value: {other.value}</div>
+/*  <script>
+/*    var view = new DoubleDown.View(document.getElementById('view'));
+/*    view.map({ value: 'valueA', other: { value: 'valueB' } });
+/*  &lt;/script>
+/******************************************************************************/
+
+DoubleDown.View = class View {
+  constructor(element) { // Adds the instance methods: map, get, and set
+    var bindings = Binding.find(element)
+      .reduce((a, b) => (a[b.path] = a[b.path] || []).push(b) && a || a, {});
+
+    this.map = data => View.map(data, bindings);
+    this.get = (path) => ((bindings[path] || [])[0] || {}).value;
+    this.set = (path, value) => (bindings[path] || []).forEach(n => n.value = (value == null ? '' : value.toString()));
+    this.dispose = () => bindings = View.dispose(bindings);
+  }
+
+  static map(data, bindings) { // Applies a data object to a set of bindings
+    Object.keys(bindings)
+      .forEach(path => {
+        var value = View.read(data, path);
+        if (value === MEMBER_NOT_FOUND) {
+          return;
+        }
+        bindings[path].forEach(binding => {
+          binding.value = value;
+        })
+      });
+  }
+
+  static read(data, path) { // Reads the value for the path from a data object
+    var parts = (path || '').split(/\./g);
+    while (data != null && parts.length > 1) {
+      data = data[parts.shift()];
+    }
+    var member = parts.shift();
+    if (data == null || member == null || !(member in data)) {
+      return MEMBER_NOT_FOUND;
+    }
+    var value = data[member];
+    return value;
+  }
+
+  static dispose(bindings) {
+    Object.keys(bindings)
+      .forEach(path =>
+        (bindings[path] || [])
+        .forEach(binding => binding.dispose())
+      );
+  }
+}
+
+const MEMBER_NOT_FOUND = {};
+
+class Binding {
+  constructor(path, getter, setter, dispose, compare) {
+    this.path = path;
+    this.dispose = () => {
+      if (dispose) {
+        dispose();
+      }
+      getter = null;
+      setter = null;
+      dispose = null;
+      compare = null;
+      delete this.path;
+      delete this.value;
+    }
+    Object.defineProperty(this, 'value', {
+      configurable: true,
+      enumerable: true,
+      get: getter,
+      set: v => {
+        if (compare ? compare(v) : v === getter()) {
+          return;
+        }
+        setter(v);
+      }
+    });
+  }
+
+  static find(element) {
+    var bindings = [];
+    var search = [element];
+    while (search.length) {
+
+      var current = search.shift();
+      if (current instanceof HTMLTemplateElement) {
+        bindings.push(...Binding.Template.fromElement(current));
+      } else if (current.nodeType === Node.TEXT_NODE) {
+        bindings.push(...Binding.Text.fromNode(current));
+      } else if (current instanceof Attr) {
+        bindings.push(...Binding.Attr.fromAttr(current));
+      }
+
+      var searchChildren = current.childNodes && !(current instanceof HTMLTemplateElement);
+      search.push(...Array.from(current.attributes || []));
+      if (searchChildren) {
+        search.push(
+          ...Array.from(current.childNodes)
+          .filter(n =>
+            ![HTMLScriptElement, HTMLStyleElement]
+            .some(t => (n instanceof t))
+          )
+        );
+      }
+    }
+    return bindings;
+  }
+}
+
+Binding.Template = class extends Binding {
+  constructor(path, templateElement) {
+    var instances = [];
+    var current = [];
+    super(
+      path,
+      getter => current,
+      setter => {
+        (current = Array.from(setter || []))
+        .forEach((item, index) =>
+          (instances[index] || (instances[index] = Binding.Template.create(templateElement)))
+          .map(item)
+        );
+        while (instances.length > current.length) {
+          instances.pop().dispose();
+        }
+      },
+      dispose => {
+        instances.forEach(i => i.dispose())
+      },
+      compare => {
+        return false;
+      }
+    );
+  }
+
+  static create(templateElement) {
+    var doc = templateElement.content.cloneNode(true);
+    var view = new DoubleDown.View(doc);
+    var content = Array.from(doc.childNodes || []);
+    templateElement.parentNode.insertBefore(doc, templateElement);
+
+    return {
+      map: model => view.map(model),
+      dispose: () => {
+        view.dispose();
+        content.forEach(c => c && c.parentNode && c.parentNode.removeChild(c));
+      }
+    }
+  }
+
+  static fromElement(templateElement) {
+    var path = templateElement.getAttribute('view-template');
+    return [new Binding.Template(path, templateElement)];
+  }
+}
+
+Binding.Attr = class extends Binding {
+  constructor(path, attr, str, repl) {
+    var current = '{' + path + '}';
+    super(
+      path,
+      getter => current,
+      setter => {
+        current = (setter == null ? path : setter).toString();
+        attr.value = str;
+        attr.bindings.forEach(b => b.apply());
+      },
+      dispose => {
+        delete attr.bindings;
+        current = null;
+        attr = null;
+      }
+    );
+    this.apply = () => {
+        if (current === repl) {
+          return;
+        }
+        while (attr.value.indexOf(repl) >= 0) {
+          attr.value = attr.value.replace(repl, current);
+        }
+      }
+      (attr.bindings || (attr.bindings = [])).push(this);
+  }
+
+  static fromAttr(attr) { // Parses bindings from an Attr
+    if (!attr || !attr.ownerElement || !attr.ownerElement.parentNode) {
+      return [];
+    }
+    var match, matches = [],
+      search = /\{[^\}]+\}/g,
+      value = (null == attr.value ? '' : attr.value.toString());
+    while (match = search.exec(value)) {
+      matches.push(match);
+    }
+    return matches.map(m =>
+      new Binding.Attr(m[0].replace(/^\{|\}$/g, ''), attr, value, m[0])
+    )
+  }
+}
+
+Binding.Text = class extends Binding {
+  constructor(path, node) {
+    var value = node.nodeValue = '{' + path + '}';
+    var content = [node];
+    var marker = node.parentNode.insertBefore(document.createComment(path), node);
+    super(
+      path,
+      getter => value,
+      setter => {
+        while (content.length) {
+          content[0].parentNode.removeChild(content.shift());
+        }
+        content = Binding.Text.parse(value = (setter == null ? path : setter).toString()).reverse();
+        content.forEach(n => {
+          marker.parentNode.insertBefore(n, marker.nextSibling);
+        });
+        Binding.Text.refreshSvg(marker);
+      },
+      dispose => {
+        while (content.length) {
+          content[0].parentNode.removeChild(content.shift());
+        }
+        content = null;
+        marker = null;
+      }
+    );
+  }
+
+  static fromNode(textNode) { // Parses bindings from a TextNode
+    if (!textNode || !textNode.parentNode) {
+      return [];
+    }
+
+    // Merge text nodes together
+    while (textNode.nextSibling && textNode.nextSibling.nodeType === Node.TEXT_NODE) {
+      textNode.nodeValue += textNode.nextSibling.nodeValue;
+      textNode.parentNode.removeChild(textNode.nextSibling);
+    }
+
+    // Search for bindings and split
+    var bindings = [];
+    var content = textNode.nodeValue;
+    while (content.length) {
+      var match = content.match(/\{[\w\.]+?\}/);
+      if (match) {
+        textNode.nodeValue = content.substr(0, match.index);
+        var path = match[0].replace(/\{|\}/g, '');
+        textNode = textNode.parentNode.insertBefore(
+          textNode.ownerDocument.createTextNode(path),
+          textNode.nextSibling
+        );
+        bindings.push(
+          new Binding.Text(
+            path,
+            textNode
+          )
+        );
+        content = content.substr(match.index + match[0].length);
+        textNode = textNode.parentNode.insertBefore(
+          textNode.ownerDocument.createTextNode(content),
+          textNode.nextSibling
+        )
+      } else {
+        break;
+      }
+    }
+    return bindings;
+  }
+
+  static parse(content) {
+    // If there's no markup just return a textnode
+    if (!DetectMarkup.exec((content = (content || '').toString()))) {
+      return [document.createTextNode(content)];
+    }
+
+    var parser = new DOMParser(); // Otherwise parse and clean html content
+    var doc = parser.parseFromString(content || '', 'text/html').body;
+    Array.from(doc.querySelectorAll('*')) // clear out unwanted elements
+      .filter(e => !HtmlTagWhitelist.some(t => t === e.tagName.toLowerCase()))
+      .forEach(e => e.parentNode && e.parentNode.removeChild(e));
+    var nodes = Array.from(doc.querySelectorAll('*'));
+    nodes // clear out unwanted attributes
+      .flatMap(n => Array.from(n.attributes || []))
+      .filter(a => !HtmlAttrWhitelist.some(n => n === a.name.toLowerCase()))
+      .forEach(a => a.ownerElement.removeAttribute(a.name));
+    return Array.from(doc.childNodes);
+  }
+
+  static refreshSvg(marker) { // Attempts to trigger a redraw of SVG content by changing an attribute value
+    while (marker && marker.tagName != 'SVG') {
+      marker = marker.parentNode;
+    }
+    if (marker) {
+      marker.setAttribute('view-updated', new Date().valueOf());
+    }
+  }
+}
+
+const HtmlTagWhitelist = [
+  'b', 'br', 'div', 'em',
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr',
+  'i', 'p', 'pre', 's', 'small', 'span',
+  'strong', 'sub', 'sup', 'u'
+];
+
+const HtmlAttrWhitelist = ['class']; // Best practice: if you need non-semantic styling use a class that the campaign template is expecting. It's the skin's job to define appearance.
+
+const DetectMarkup = new RegExp(
+  '<(' + HtmlTagWhitelist.join('|') + ')' +
+  '(\\s+(' + HtmlAttrWhitelist.join('|') + ')\\s*=\\s*"[^"]*")*' +
+  '\\s*\\/?\\s*>',
+  'mi'
+)
+})();
+// Source: common/bootstrap/build-logging.js
+(function() {
+console.log('BuildId:', window.buildId);
+document.addEventListener('ready', () => {
+  console.log('BuildId:', window.buildId);
+});
+})();
+// Source: common/bootstrap/interactions.js
+(function() {
+DoubleDown.app.ready.then(() => {
+  DoubleDown.Interactions.registerInteractions(document);
+  DoubleDown.Interactions.registerExternalEvents(document);
+})
+})();
+// Source: common/bootstrap/skin.js
+(function() {
+// Preloads the document's current backgroudn image assets before revealing the document
+
+document.ready.then(() => {
+  document.body.style.opacity = 0;
+  DoubleDown.Skin
+    .preloadDocument()
+    .finally(() => {
+      document.body.style.opacity = '';
+      document.dispatchEvent(new CustomEvent('skin-ready'));
+    });
+})
+})();
+// Source: common/bootstrap/view.js
+(function() {
+// Attatches a DoubleDown.View to the DOM and adds it to DoubleDown.app
+
+document.ready.then(() => {
+  DoubleDown.app.view = new DoubleDown.View(document.body.querySelector('main') || document.body);
+})
+})();</script>
+    <link type="image/ico" href="/common/favicon.ico" rel="icon">
+    <link type="text/css" href="/common/doubledown.css?cachebustbuildno=0" rel="stylesheet">
+    <title>Secret Spycase Swap DoubleDown FortKnox</title>
+  </head>
+
+  <body class="">
+<!-- ** Build: Skin.html -->
+<div style="position: fixed; display: block; width: 0px; height: 0px; margin: 0px; padding: 0px; opacity: 0; left: 0px; top: 0px; overflow: hidden;"><div style="width: 0px; height: 0px; overflow: hidden;">
+  <style>
+    @import url('template.css');
+
+    @font-face {
+      font-family: 'FuturaLTPro';
+      src: url('../default/Fonts/LinotypeFuturaLTPro.WOFF') format('woff');
+    }
+
+    @font-face {
+      font-family: 'FuturaLTProBold';
+      src: url('../default/Fonts/LinotypeFuturaLTBoldPro.WOFF') format('woff');
+    }
+
+    @font-face {
+      font-family: 'FuturaLTProHeavy';
+      src: url('../default/Fonts/LinotypeFuturaLTHeavyPro.WOFF') format('woff');
+    }
+
+    @font-face {
+      font-family: 'LasVegasFabulous';
+      src: url('../default/Fonts/las-vegas-fabulous.TTF') format('truetype');
+    }
+
+    /************************************************************************/
+    /* Setting up screen responsiveness ratio                               */
+    /************************************************************************/
+    main {
+      width: 100vmin;
+      height: 100vmin;
+    }
+
+    /************************************************************************/
+    /************************************************************************/
+    /* Page content styles                                                  */
+    /************************************************************************/
+    [disabled] {
+      filter: grayscale(100%);
+    }
+
+    /* Performance Optimization: Forces browser to use graphic accelerations */
+    /* Tohamas trick the browser into triggering GPU acceleration for faster animation transitions */
+    main {
+      transform: translateZ(0);
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+      display: block;
+      position: absolute;
+      left: auto;
+      right: auto;
+      top: auto;
+      bottom: auto;
+    }
+
+    /* Reset */
+    /* Reset */
+    main *,
+    button,
+    button:hover,
+    button:focus,
+    button:active,
+    button:visited {
+      outline: none;
+      border: none;
+      margin: 0;
+      padding: 0;
+      left: auto;
+      right: auto;
+      top: auto;
+      bottom: auto;
+      background: transparent center/contain no-repeat;
+    }
+
+    body {
+      opacity: 0;
+      -webkit-animation: startFadein .5s 0.4s forwards;
+      animation: startFadein .5s 0.4s forwards;
+    }
+
+    /********************************** BUTTON CONTAINER  *********************************/
+    .flex-container {
+      display: flex;
+      flex-wrap: nowrap;
+      position: absolute;
+    }
+
+    .butt_left {
+      margin: 0vmin -0.3vmin 0vmin 0vmin;
+      width: 13vmin;
+      text-align: center;
+      line-height: 13vmin;
+      font-size: 5vmin;
+      background-image: url('../default/button_submit_01.png');
+      background-position: right;
+      z-index: 19;
+      position: relative;
+    }
+
+    .butt_middle {
+      margin: 0vmin 0vmin 0vmin 0vmin;
+      text-align: center;
+      line-height: 13vmin;
+      font-size: 5vmin;
+      color: #ffffff;
+      font-family: "FuturaLTPro";
+      text-shadow: 0.3vmin 0.3vmin 0.3vmin black;
+      text-align: center;
+      vertical-align: middle;
+      background-image: url('../default/button_submit_02.png');
+      background-repeat: repeat-x;
+      z-index: 20;
+      position: relative;
+    }
+
+    .butt_right {
+      margin: 0vmin 0vmin 0vmin -0.3vmin;
+      width: 14vmin;
+      text-align: center;
+      line-height: 13vmin;
+      font-size: 5vmin;
+      background-image: url('../default/button_submit_03.png');
+      background-position: left;
+      z-index: 19;
+      position: relative;
+
+    }
+
+    /* Close Buttons */
+    button.close_but {
+      background: center/contain url('../default/12D_Btn_Exit_PNG.png') no-repeat;
+      z-index: 23;
+      width: 5%;
+      height: 5%;
+      position: absolute;
+      right: 1%;
+      top: 5%;
+    }
+
+    /* Info Buttons */
+    button.info {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      left: 86%;
+      width: 6.05%;
+      height: 5.8%;
+      top: 73%;
+      z-index: 41;
+      background: center/contain url('../default/Icon_Info_Color.png') no-repeat;
+      position: absolute;
+    }
+
+    /********************************** SWAP CASES CLASS  *********************************/
+
+    .swapCases .finalCase {
+      width: 17vmin;
+      height: 17vmin;
+      background: center/contain url('Case_Partial_PNG.png') no-repeat;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      opacity: 0;
+      -webkit-animation: fadein 2s 1.8s forwards;
+      animation: fadein 2s 1.8s forwards;
+
+    }
+
+    .swapCases .btn-disable,
+    .swapCases .btn-enabled,
+    .swapCases .case-selected,
+    .swapCases .case-not-selected,
+    .swapCases .caseOpen {
+      -webkit-animation: fadeout 2s 1s forwards;
+      animation: fadeout 2s 1s forwards;
+
+    }
+
+    .disableAllCases button.case,
+    .confirmation button.case {
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .swapCases .containerCasesBg div:not(.yourCase) {
+      -webkit-animation: fadeout 0.5s 1.8s forwards;
+      animation: fadeout 0.5s 1.8s forwards;
+    }
+
+    button.swapButt {
+      height: 12.8%;
+      transform: scale(1.1);
+      position: absolute;
+      top: 44%;
+      left: 41%;
+      z-index: 31;
+      display: none;
+      opacity: 0;
+    }
+
+    .swapCases .swapButt {
+      display: block;
+      -webkit-animation: startFadein 2s 3s forwards;
+      animation: startFadein 2s 3s forwards;
+    }
+
+    .finalCase {
+      display: none;
+    }
+
+    /********************************** LAYOUT CONTAINER  *********************************/
+    .layout {
+      width: 100%;
+      height: 100%;
+      pointer-events: all;
+      display: block;
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+    }
+
+    /********************************** DIALOG CONTAINER  *********************************/
+    .backdrop_image {
+      display: block;
+      position: absolute;
+      height: 85%;
+      width: 92%;
+      background: center/contain url('Illustration_PNG.png') no-repeat;
+      top: 6%;
+      left: 4%;
+    }
+
+    .border_dialog_gold {
+      border: 3.5vmin solid;
+      border-image-source: url('../default/Frame_4K_Gold_PNG.png');
+      border-image-repeat: repeat;
+      border-image-slice: 30;
+      height: 78%;
+      width: 93%;
+      z-index: 15;
+      position: absolute;
+      top: 11.5%;
+      bottom: 0;
+      left: 3.5%;
+      right: 0;
+    }
+
+    /********************************** TEXT BOX CONTAINER  *********************************/
+    .txtBox {
+      background-color: rgba(0, 0, 0, 0.8);
+      border-radius: 3vmin;
+      font-family: "FuturaLTPro";
+      color: #ffffff;
+      left: 0;
+      right: 0;
+      margin: auto;
+      z-index: 35;
+      width: 85%;
+      position: absolute;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      vertical-align: middle;
+      word-wrap: break-word;
+      border: 3.5vmin solid;
+      border-image-source: url('../default/Frame_4K_GoldThin_PNG.png');
+      border-image-repeat: repeat;
+      border-image-slice: 30;
+      border-radius: 1vmin;
+      display: table-cell;
+      bottom: 5%;
+      font-size: 3.4vmin;
+    }
+
+    /********************************** MENU CONTAINER  *********************************/
+    .containerMenu {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      width: 20%;
+      top: 27%;
+      left: 11%;
+      position: absolute;
+      z-index: 15;
+    }
+
+    .menuBox {
+      background-color: rgba(0, 0, 0, 0.8);
+      border-radius: 2vmin;
+      font-family: "FuturaLTProHeavy";
+      color: #ffffff;
+      height: 57vmin;
+      width: 25vmin;
+      left: 9%;
+      z-index: 14;
+      top: 20%;
+      position: absolute;
+      font-size: 4vmin;
+      opacity: 0;
+      -webkit-animation: startFadein 0.5s 0.1s forwards;
+      animation: startFadein 0.5s 0.1s forwards;
+    }
+
+    .caseMenu {
+      width: 10vmin;
+      z-index: 20;
+      margin: 0.1vmin;
+      font-size: 3.3vmin;
+      font-family: "FuturaLTProHeavy";
+      color: #ffd40b;
+      text-align: center;
+      opacity: 0;
+      -webkit-animation: startFadein 0.5s 0.1s forwards;
+      animation: startFadein 0.5s 0.1s forwards;
+
+    }
+
+    .menu-enabled {
+      color: #ffd40b;
+    }
+
+    .menu-disable {
+      color: #cd010b;
+      text-decoration: line-through;
+    }
+
+    .prizeMenuTitle {
+      color: #ffffff;
+      font-size: 2vmin;
+      font-family: "FuturaLTProHeavy";
+      position: absolute;
+      text-align: center;
+      z-index: 20;
+      top: 23%;
+      left: 11%;
+      width: 20vmin;
+      opacity: 0;
+      -webkit-animation: startFadein 0.5s 1s forwards;
+      animation: startFadein 0.5s 1s forwards;
+    }
+
+    /********************************** HEADER  *********************************/
+    .header_top {
+      height: 13vmin;
+      background: center/contain url('Header_Game_PNG.png') no-repeat;
+      z-index: 20;
+      display: block;
+      position: absolute;
+      top: 5%;
+      left: 0;
+      right: 0;
+      opacity: 0;
+      -webkit-animation: startFadein 1s 0.3s forwards;
+      animation: startFadein 1s 0.3s forwards;
+    }
+
+    /********************************** CASES  *********************************/
+    .caseClosed {
+      background: center/contain url('Case_Closed_PNG.png') no-repeat;
+    }
+
+    .caseOpen {
+      background: center/contain url('Case_Open_Small_PNG.png') no-repeat;
+    }
+
+    .btn-enabled {
+      color: #ffffff;
+      font-size: 4vmin;
+    }
+
+    .btn-disable {
+      cursor: not-allowed;
+      pointer-events: none;
+      color: #cd010b;
+      font-size: 5vmin;
+      -webkit-animation: textBounce 0.8s 1s forwards;
+      animation: textBounce 0.8s 1s forwards;
+    }
+
+    .swapBtn-disable {
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .case-not-selected {
+      text-shadow: 0.3vmin 0.3vmin 0.3vmin black;
+      font-size: 4vmin;
+
+    }
+
+    .case-selected {
+      -webkit-text-fill-color: #cd010b;
+      -webkit-text-stroke-width: 0.7vmin;
+      -webkit-text-stroke-color: #ffffff;
+      font-size: 5vmin;
+      -webkit-animation: textBounce 0.8s 1s forwards;
+      animation: textBounce 0.8s 1s forwards;
+    }
+
+    .containerCases {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      width: 52%;
+      height: 47%;
+      top: 21%;
+      left: 39.5%;
+      position: absolute;
+      z-index: 15;
+      opacity: 0;
+      -webkit-animation: startFadein 0.5s 0.1s forwards;
+      animation: startFadein 0.5s 0.1s forwards;
+    }
+
+    .containerCasesBg {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      width: 52%;
+      height: 47%;
+      top: 21%;
+      left: 39.5%;
+      position: absolute;
+      z-index: 15;
+      opacity: 0;
+      -webkit-animation: startFadein 0.5s 0.1s forwards;
+      animation: startFadein 0.5s 0.1s forwards;
+    }
+
+    button.case,
+    .caseBg,
+    .caseTxt {
+      width: 17vmin;
+      height: 17vmin;
+      z-index: 20;
+      font-family: "FuturaLTProHeavy";
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .containerCasesBg .yourCase {
+      width: 22vmin;
+      height: 22vmin;
+      z-index: 20;
+      position: absolute;
+      left: -56%;
+      top: 96%;
+      background: center/contain url('Case_Closed_PNG.png') no-repeat;
+      color: rgba(0, 0, 0, 0);
+      text-size-adjust: 0.1%;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .yourCase {
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .containerCases button.yourCase,
+    .containerCases .yourCase {
+      width: 22vmin;
+      height: 22vmin;
+      z-index: 20;
+      position: absolute;
+      left: -56%;
+      top: 96%;
+    }
+
+
+    /********************************** COLLECT CASE CLASS  *********************************/
+    .collectCase .openCasePos {
+      height: 22%;
+      top: 57%;
+      z-index: 8;
+      left: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      opacity: 0;
+      -webkit-animation: startFadein 1s 0.3s forwards;
+      animation: startFadein 1s 0.3s forwards;
+    }
+
+    .collectCase .openCaseTxt {
+      font-family: "FuturaLTProHeavy";
+      /* Fall Back */
+      color: #ffffff;
+      /*  ONLY SHOW IN WEBKIT BROWSER */
+      background: linear-gradient(#FF8300, #FDFAC9, #FF8300);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      -moz-text-fill-color: transparent;
+      -o-text-fill-color: transparent;
+      -ms-text-fill-color: transparent;
+      text-fill-color: transparent;
+      font-size: 11vmin;
+      position: absolute;
+
+    }
+
+    .collectCase .openCaseTxt_stroke {
+      -webkit-text-fill-color: #cd010b;
+      -webkit-text-stroke-width: 1.3vmin;
+      -webkit-text-stroke-color: #cd010b;
+      font-size: 11vmin;
+      font-family: "FuturaLTProHeavy";
+      position: absolute;
+    }
+
+    .collectCase .openCaseCreditTxt {
+      text-shadow: 0.3vmin 0.3vmin 0.3vmin black;
+      font-family: "FuturaLTProHeavy";
+      font-size: 4vmin;
+      color: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      left: 0;
+      right: 0;
+      margin: auto;
+      top: 75%;
+      position: absolute;
+      z-index: 20;
+      opacity: 0;
+      -webkit-animation: startFadein 1s 0.3s forwards;
+      animation: startFadein 1s 0.3s forwards;
+
+    }
+
+    .collectCase .openCasetxtBox {
+      text-shadow: 0.3vmin 0.3vmin 0.3vmin black;
+      font-family: "FuturaLTProHeavy";
+      color: #ffffff;
+      left: 0;
+      right: 0;
+      margin: auto;
+      z-index: 35;
+      width: 85%;
+      position: absolute;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      vertical-align: middle;
+      word-wrap: break-word;
+      display: table-cell;
+      top: 55%;
+      font-size: 5vmin;
+      opacity: 0;
+      -webkit-animation: startFadein 1s 0.3s forwards;
+      animation: startFadein 1s 0.3s forwards;
+    }
+
+    .collectCase .header_top {
+      background: center/contain url('Header_Congrats_PNG.png') no-repeat;
+      opacity: 0;
+      -webkit-animation: startFadein 1s 0.3s forwards;
+      animation: startFadein 1s 0.3s forwards;
+    }
+
+    .collectCase .openCaseImg {
+      height: 39vmin;
+      background: center/contain url('Case_Open_Large_PNG.png') no-repeat;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      top: 20%;
+      left: 1%;
+      right: 0;
+      opacity: 0;
+      -webkit-animation: startFadein 1s 0.3s forwards;
+      animation: startFadein 1s 0.3s forwards;
+    }
+
+    .collectCase .creditsImg {
+      height: 30vmin;
+      background: center/contain url('Illustration_Reward_PNG.png') no-repeat;
+      z-index: 19;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      top: 30%;
+      left: 3%;
+      right: 0;
+      opacity: 0;
+      -webkit-animation: startFadein 1s 0.3s forwards;
+      animation: startFadein 1s 0.3s forwards;
+    }
+
+    button.collectButt {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      left: 0;
+      right: 0;
+      width: 100%;
+      height: 12.8%;
+      top: 83%;
+      z-index: 40;
+      transform: scale(1.1);
+      position: absolute;
+      opacity: 0;
+    }
+
+    .collectCase .collectButt {
+      display: flex;
+      -webkit-animation: startFadein 1s 0.3s forwards;
+      animation: startFadein 1s 0.3s forwards;
+    }
+
+    .openCasePos,
+    .openCasetxtBox,
+    .openCaseImg,
+    .creditsImg,
+    .openCaseCreditTxt {
+      display: none;
+    }
+
+    .collectCase .containerCasesBg,
+    .collectCase .containerCases,
+    .collectCase .containerMenu,
+    .collectCase .menuBox,
+    .collectCase .info,
+    .collectCase .close_but,
+    .collectCase .txtBox,
+    .collectCase .prizeMenuTitle {
+      display: none;
+    }
+
+
+    /********************************** PLAY AGAIN CASE CLASS  *********************************/
+    .playAgain .playAgaintxtBox {
+      text-shadow: 0.3vmin 0.3vmin 0.3vmin black;
+      font-family: "FuturaLTProHeavy";
+      color: #ffffff;
+      left: 0;
+      right: 0;
+      margin: auto;
+      z-index: 35;
+      width: 85%;
+      position: absolute;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      vertical-align: middle;
+      word-wrap: break-word;
+      display: table-cell;
+      top: 60%;
+      font-size: 5vmin;
+      opacity: 0;
+      -webkit-animation: startFadein 1s 0.3s forwards;
+      animation: startFadein 1s 0.3s forwards;
+    }
+
+    .playAgain .header_top {
+      background: center/contain url('../default/Header_PlayAgain_PNG.png') no-repeat;
+      opacity: 0;
+      -webkit-animation: startFadein 1s 0.3s forwards;
+      animation: startFadein 1s 0.3s forwards;
+    }
+
+    .playAgain .openCaseImg {
+      height: 39vmin;
+      background: center/contain url('Case_Open_Large_PNG.png') no-repeat;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      top: 20%;
+      left: 1%;
+      right: 0;
+      opacity: 0;
+      -webkit-animation: startFadein 1s 0.3s forwards;
+      animation: startFadein 1s 0.3s forwards;
+    }
+
+    button.playAgainButt {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      left: 0;
+      right: 0;
+      width: 100%;
+      height: 12.8%;
+      top: 83%;
+      z-index: 40;
+      transform: scale(1.1);
+      position: absolute;
+      opacity: 0;
+    }
+
+    .playAgain .playAgainButt {
+      display: flex;
+      -webkit-animation: startFadein 1s 0.3s forwards;
+      animation: startFadein 1s 0.3s forwards;
+    }
+
+    .openCasePos,
+    .playAgaintxtBox,
+    .openCaseImg {
+      display: none;
+    }
+
+    .playAgain .containerCasesBg,
+    .playAgain .containerCases,
+    .playAgain .containerMenu,
+    .playAgain .menuBox,
+    .playAgain .info,
+    .playAgain .txtBox,
+    .playAgain .prizeMenuTitle {
+      display: none;
+    }
+
+    /********************************** DealAmount CONTAINER  *********************************/
+    .dealAmount_container {
+      height: 12vmin;
+      background: center/contain url('bg_DealAmount_PNG.png') no-repeat;
+      z-index: 19;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      top: 71%;
+      left: 56.4%;
+      right: 0;
+      width: 34vmin;
+      transform: scale(1.2);
+    }
+
+    .dealAmountTxtPos {
+      height: 22%;
+      top: 64%;
+      z-index: 20;
+      top: 71.1%;
+      left: 73.5%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      opacity: 0;
+      -webkit-animation: startFadein 1s 0.3s forwards;
+      animation: startFadein 1s 0.3s forwards;
+    }
+
+    .dealAmountTxt {
+      height: 12vmin;
+      z-index: 20;
+      font-weight: bold;
+      position: absolute;
+      /* Fall Back */
+      color: #ffffff;
+      /*  ONLY SHOW IN WEBKIT BROWSER */
+      background: linear-gradient(#FF8300, #FDFAC9, #FF8300);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      -moz-text-fill-color: transparent;
+      -o-text-fill-color: transparent;
+      -ms-text-fill-color: transparent;
+      text-fill-color: transparent;
+      font-family: "FuturaLTProHeavy";
+      font-size: 6vmin;
+      display: none;
+    }
+
+    .dealAmountTxt_stroke {
+      height: 12vmin;
+      z-index: 19;
+      font-weight: bold;
+      position: absolute;
+      -webkit-text-fill-color: transparent;
+      -webkit-text-stroke-width: 1vmin;
+      -webkit-text-stroke-color: #cd010b;
+      font-family: "FuturaLTProHeavy";
+      font-size: 6vmin;
+      display: none;
+    }
+
+
+    /********************************** START CAMPAIGN CLASS  *********************************/
+    .startCampaign .dealAmountTxtPos {
+      top: 71.1%;
+      left: 73.5%;
+      display: flex;
+    }
+
+    .startCampaign .dealAmount_container {
+      top: 71.1%;
+      display: flex;
+    }
+
+    .startCampaign .dealAmountTxt_stroke,
+    .startCampaign .dealAmountTxt {
+      display: block;
+    }
+
+    button.takeButt {
+      top: 77%;
+      left: -1%;
+      width: 55%;
+      z-index: 31;
+      display: none;
+    }
+
+    button.dealButt {
+      top: 77%;
+      left: 45.5%;
+      width: 60%;
+      z-index: 31;
+      display: none;
+    }
+
+    .startCampaign .takeButt,
+    .startCampaign .dealButt {
+      display: block;
+      height: 12.8%;
+      transform: scale(0.9);
+      position: absolute;
+      right: 0;
+    }
+
+    .dealButt .butt_middle {
+      padding-left: 5vmin;
+      padding-right: 5vmin;
+    }
+
+
+    .startCampaign .txtBox,
+    .startCampaign .info {
+      display: none;
+    }
+
+    /********************************** CONFIRMATION CLASS  *********************************/
+    button.yesButt {
+      left: 55%;
+      top: 68%;
+      width: 30%;
+      z-index: 36;
+      display: none;
+    }
+
+    button.noButt {
+      left: 16%;
+      top: 68%;
+      width: 30%;
+      z-index: 36;
+      display: none;
+    }
+
+    .confirmation .yesButt,
+    .confirmation .noButt {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 12.8%;
+      transform: scale(1.1);
+      position: absolute;
+      right: 0;
+    }
+
+    .confirmation .takeButt,
+    .confirmation .nextButt,
+    .confirmation .dealButt {
+      filter: brightness(0.3);
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .confirmation .confirmationTxtBox {
+      display: table-cell;
+      bottom: 25%;
+      padding-top: 10%;
+      padding-bottom: 10%;
+      font-size: 6vmin;
+    }
+
+    .confirmationTxtBox {
+      background-color: rgba(0, 0, 0, 0.8);
+      border-radius: 3vmin;
+      font-family: "FuturaLTPro";
+      color: #ffffff;
+      left: 0;
+      right: 0;
+      margin: auto;
+      z-index: 35;
+      width: 85%;
+      position: absolute;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      vertical-align: middle;
+      word-wrap: break-word;
+      border: 3.5vmin solid;
+      border-image-source: url('../default/Frame_4K_GoldThin_PNG.png');
+      border-image-repeat: repeat;
+      border-image-slice: 30;
+      display: none;
+    }
+
+    .confirmation .info,
+    .confirmation .txtBox {
+      display: none;
+    }
+
+
+    /********************************** INFORMATION CLASS  *********************************/
+
+    .information .infoTxtBox {
+      border-radius: 3vmin;
+      background-color: rgba(0, 0, 0, 0.8);
+      font-family: "FuturaLTPro";
+      color: #ffffff;
+      padding: 3vmin;
+      z-index: 35;
+      position: absolute;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      vertical-align: middle;
+      word-wrap: break-word;
+      display: table-cell;
+      top: 20%;
+      font-size: 2.9vmin;
+      width: 58.5%;
+      left: 35.5%;
+      text-align: left;
+      opacity: 0;
+      -webkit-animation: startFadein 1s 0.3s forwards;
+      animation: startFadein 1s 0.3s forwards;
+    }
+
+    .information .header_top {
+      background: center/contain url('Header_Info_PNG.png') no-repeat;
+      opacity: 0;
+      -webkit-animation: startFadein 1s 0.3s forwards;
+      animation: startFadein 1s 0.3s forwards;
+    }
+
+    button.nextButt {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      left: 0;
+      right: 0;
+      width: 100%;
+      height: 12.8%;
+      top: 83%;
+      z-index: 40;
+      transform: scale(1.1);
+      position: absolute;
+      opacity: 0;
+    }
+
+    .information .nextButt {
+      display: flex;
+      -webkit-animation: startFadein 1s 0.3s forwards;
+      animation: startFadein 1s 0.3s forwards;
+    }
+
+    .infoTxtBox {
+      display: none;
+    }
+
+    .information .txtBox,
+    .information .containerCasesBg,
+    .information .containerCases,
+    .information .info {
+      display: none;
+    }
+
+
+    /********************************** SPAN TEXT CLASS  *********************************/
+    .smallText {
+      color: #FDCB00;
+      display: inline-block;
+      line-height: normal;
+    }
+
+    .smallText {
+      display: none;
+    }
+
+    .upperCaseText {
+      text-transform: uppercase;
+      display: inline-block;
+      line-height: normal;
+    }
+
+    /********************************** LEGAL CLASS *********************************/
+    .legal {
+      justify-content: center;
+      z-index: 10;
+      display: flex;
+      position: absolute;
+      top: 97%;
+      left: 0;
+      right: 0;
+
+    }
+
+    .legal_text {
+      font-family: "FuturaLTPro";
+      font-weight: bold;
+      color: #ffffff;
+      font-size: 1.6vmin;
+      display: block;
+      position: absolute;
+    }
+
+    .bounce,
+    .bounceAgain {
+      -webkit-animation: textBounce 0.8s 1s forwards;
+      animation: textBounce 0.8s 1s forwards;
+    }
+
+
+    @-webkit-keyframes textBounce {
+      0% {
+        transform: scale(0.8);
+        -webkit-animation-timing-function: ease-out;
+      }
+
+      5% {
+        transform: scale(.1);
+        -webkit-animation-timing-function: ease;
+      }
+
+      40% {
+        transform: scale(1.25);
+        -webkit-animation-timing-function: ease-in;
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    @keyframes textBounce {
+      0% {
+        transform: scale(0.8);
+        animation-timing-function: ease-out;
+      }
+
+      5% {
+        transform: scale(.1);
+        animation-timing-function: ease;
+      }
+
+      40% {
+        transform: scale(1.25);
+        animation-timing-function: ease-in;
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    @-webkit-keyframes fadeout {
+      0% {
+
+        opacity: 1;
+      }
+
+
+      100% {
+        opacity: 0;
+      }
+    }
+
+    @keyframes fadeout {
+      0% {
+
+        opacity: 1;
+      }
+
+
+      100% {
+        opacity: 0;
+      }
+    }
+
+    @-webkit-keyframes fadein {
+      0% {
+        opacity: 0;
+        transform: scale(1);
+      }
+
+      10% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: 1;
+        top: 30%;
+        left: 55%;
+        transform: scale(2.5);
+      }
+    }
+
+    @keyframes fadein {
+      0% {
+
+        opacity: 0;
+        transform: scale(1);
+      }
+
+      10% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: 1;
+        top: 30%;
+        left: 55%;
+        transform: scale(2.5);
+      }
+    }
+
+    @-webkit-keyframes startFadein {
+      0% {
+        opacity: 0;
+      }
+
+      100% {
+        opacity: 1;
+      }
+    }
+
+    @keyframes startFadein {
+      0% {
+        opacity: 0;
+      }
+
+      100% {
+        opacity: 1;
+      }
+    }
+  </style>
+
+  <skin-preload name="collect_assets">
+    <skin-asset src="url('Header_Congrats_PNG.png')">
+    <skin-asset src="url('Case_Open_Large_PNG.png')">
+    <skin-asset src="url('Illustration_Reward_PNG.png')">
+  </skin-asset></skin-asset></skin-asset></skin-preload>
+
+  <skin-preload name="information_assets">
+    <skin-asset src="url('Header_Info_PNG.png')">
+  </skin-asset></skin-preload>
+
+  <skin-preload name="swapCase_assets">
+    <skin-asset src="url('Case_Partial_PNG.png')">
+  </skin-asset></skin-preload>
+
+  <skin-preload name="playAgain_assets">
+    <skin-asset src="url('../default/Header_PlayAgain_PNG.png')">
+  </skin-asset></skin-preload>
+
+  <skin-preload name="openCase_assets">
+    <skin-asset src="url('Case_Open_Small_PNG.png')">
+  </skin-asset></skin-preload>
+
+</div></div>
+    <main>
+      <div class="layout">
+        <div class="legal">
+          <div class="legal_text">Offer valid for intended recipient. Offer is non-transferable. Single-use only.</div>
+        </div>
+
+        <!-- MAIN ASSETS -->
+        <button class="close_but" name="close" interaction-click="DoubleDown.app.cashOut()"></button>
+        <button class="info" name="information" interaction-click="DoubleDown.app.information()" external-back-button="click"></button>
+        <div class="header_top"></div>
+        <div class="backdrop_image"></div>
+        <div class="border_dialog_gold"></div>
+
+        <!-- CASE BG IMAGES -->
+        <div class="containerCasesBg">
+          <template view-template="cases">
+            <div class="caseBg {changeBg} {yourCase}"></div>
+          </template>
+        </div>
+
+        <!-- CASE BG TEXT STROKE-->
+        <div class="containerCases">
+          <template view-template="cases">
+            <div class="caseTxt {changeTextStyle} {yourCase}">
+              {aphabet}
+            </div>
+          </template>
+        </div>
+
+        <!-- A,B,C,D TEXT BUTTON -->
+        <div class="containerCases">
+          <template view-template="cases">
+            <button class="case {disable} {yourCase}" name="purchase" interaction-click="DoubleDown.app.caseSelected({casePos}, {caseAmt})">
+              {aphabet}
+            </button>
+          </template>
+        </div>
+
+        <!-- A,B,C,D TEXT  -->
+        <div class="containerMenu">
+          <template view-template="cases">
+            <div class="caseMenu {disableMenu}">{caseAmtMenuAbbreviate}</div>
+          </template>
+        </div>
+
+        <!-- SWAP BUTTON -->
+        <button class="swapButt {disable}" name="swap" interaction-click="DoubleDown.app.swapCases()">
+          <div class="flex-container">
+            <div class="butt_left"></div>
+            <div class="butt_middle">SWAP</div>
+            <div class="butt_right"></div>
+          </div>
+        </button>
+
+        <!-- DEAL BUTTON -->
+        <button class="dealButt" name="deal" interaction-click="DoubleDown.app.makeDeal()">
+          <div class="flex-container">
+            <div class="butt_left"></div>
+            <div class="butt_middle">SAFE BET</div>
+            <div class="butt_right"></div>
+          </div>
+        </button>
+
+        <!-- TAKE BUTTON -->
+        <button class="takeButt" name="take" interaction-click="DoubleDown.app.cashOut()">
+          <div class="flex-container">
+            <div class="butt_left"></div>
+            <div class="butt_middle">TAKE <span class="upperCaseText">{tokenName}</span></div>
+            <div class="butt_right"></div>
+          </div>
+        </button>
+
+        <!-- MENU ASSETS -->
+        <div class="menuBox"></div>
+
+        <!-- CONFIRMATION ASSETS -->
+        <div class="infoTxtBox">You have one {tokenName} with a secret credit amount.&nbsp;<span class="smallText">9</span>&nbsp;others are in play. <br><br>
+          Choose TAKE <span class="upperCaseText">{tokenName}</span> to keep your original, or open other {tokenName}s, altering your Safe Bet. <br><br>
+          You can open a max of&nbsp;<span class="smallText">8</span>&nbsp;{tokenName}s before you must decide: Keep your {tokenName}, swap it, or take the Safe Bet!
+        </div>
+
+        <!-- CONFIRMATION ASSETS -->
+        <div class="txtBox">Tap a {tokenName} to open it. Your Safe Bet offer will change.</div>
+
+        <!-- CONFIRMATION ASSETS -->
+        <div class="confirmationTxtBox"><span class="upperCaseText">{confirmationType}</span></div>
+        <div class="finalCase" style="top:{finalCaseTopPos}; left:{finalCaseLeftPos};"></div>
+
+        <div class="prizeMenuTitle">REMAINING PRIZES</div>
+
+        <!-- YES BUTTON -->
+        <button class="yesButt" name="yes" interaction-click="DoubleDown.app.collectCase()">
+          <div class="flex-container">
+            <div class="butt_left"></div>
+            <div class="butt_middle">YES</div>
+            <div class="butt_right"></div>
+          </div>
+        </button>
+
+        <!-- NO BUTTON -->
+        <button class="noButt" name="no" interaction-click="DoubleDown.app.changeDecision()">
+          <div class="flex-container">
+            <div class="butt_left"></div>
+            <div class="butt_middle">NO</div>
+            <div class="butt_right"></div>
+          </div>
+        </button>
+
+        <!-- DealAmount ASSETS -->
+        <div class="dealAmount_container"></div>
+        <div class="dealAmountTxtPos">
+          <div class="dealAmountTxt {bounce}">{bankDealAmountabbreviate}</div>
+          <div class="dealAmountTxt_stroke {bounce}">{bankDealAmountabbreviate}</div>
+        </div>
+
+        <!-- FINAL CASE ASSETS -->
+        <div class="openCaseImg"></div>
+        <div class="creditsImg"></div>
+        <div class="openCasePos">
+          <div class="openCaseTxt_stroke">{finalTotal}</div>
+          <div class="openCaseTxt">{finalTotal}</div>
+        </div>
+        <div class="openCasetxtBox">{confirmationTxt}</div>
+        <div class="openCaseCreditTxt">CREDITS</div>
+        <div class="playAgaintxtBox">Are you on a&nbsp;<span class="smallText">lucky</span>&nbsp;streak? / Another chance at better&nbsp;<span class="smallText">luck</span>!</div>
+
+        <!-- COLLECT BUTTTON -->
+        <button class="collectButt" name="collect" interaction-click="DoubleDown.app.collectCredits()" external-back-button="click">
+          <div class="flex-container">
+            <div class="butt_left"></div>
+            <div class="butt_middle">COLLECT</div>
+            <div class="butt_right"></div>
+          </div>
+        </button>
+
+        <!-- PRICE BUTTTON -->
+        <button class="playAgainButt" name="play" interaction-click="DoubleDown.app.purchase()">
+          <div class="flex-container">
+            <div class="butt_left"></div>
+            <div class="butt_middle">PLAY FOR ${productPrice}</div>
+            <div class="butt_right"></div>
+          </div>
+        </button>
+
+        <!-- NEXT BUTTTON -->
+        <button class="nextButt" name="next" interaction-click="DoubleDown.app.next()">
+          <div class="flex-container">
+            <div class="butt_left"></div>
+            <div class="butt_middle">LET'S PLAY</div>
+            <div class="butt_right"></div>
+          </div>
+        </button>
+
+      </div>
+    </main>
+    <script>
+      DoubleDown.app.casesPicked = [];
+      DoubleDown.app.caseSelected = (casePos, caseAmt) => {
+
+        // Make offer amount text bounce everytime a case is clicked
+        DoubleDown.app.model.bounce = 'removeBounce';
+        setTimeout(function() {
+          DoubleDown.app.model.bounce = 'bounce';
+          DoubleDown.app.view.map(DoubleDown.app.model);
+        }, 200);
+
+        // Build array of picked cases
+        DoubleDown.app.casesPicked.push(caseAmt);
+
+        // Get the Cases that have not been picked
+        DoubleDown.app.casesRemaining = DoubleDown.app.allCases;
+
+        // Get and remove selected case amount
+        var removeCase = DoubleDown.app.casesRemaining.indexOf(caseAmt);
+        if (removeCase > -1) {
+          DoubleDown.app.casesRemaining.splice(removeCase, 1);
+        }
+        // Get sum value of total cases selected
+        var totalSumOfCasesPicked = DoubleDown.app.casesPicked.reduce(DoubleDown.app.totalSum);
+
+        // Set the DealAmount
+        var bankDealAmountValue = (DoubleDown.app.totalSumOfAllCases - totalSumOfCasesPicked) / DoubleDown.app.casesRemaining.length;
+
+        // Get caseMenu values
+        var caseMenuAmt = caseAmt.abbreviateNum();
+
+        // Change menu amount color function
+        DoubleDown.app.changeMenuAmtColor = (amount, index) => {
+          if (amount === caseAmt) {
+            DoubleDown.app.model.cases[index].disableMenu = 'menu-disable';
+          }
+        }
+        // Find and Change menu amount color
+        DoubleDown.app.allMenuAmts.find(DoubleDown.app.changeMenuAmtColor);
+
+        // start campaign when user select first case
+        if (DoubleDown.app.casesPicked.length <= 1) {
+          DoubleDown.Skin.preload('openCase_assets')
+            .catch(error => {
+              'Info Assets Not loaded ' + error
+            })
+            .finally(() => {
+              document.body.classList.add('startCampaign');
+            });
+        }
+
+        // 2 cases are left the user must cashout or make a deal
+        if (DoubleDown.app.casesRemaining.length <= 2) {
+          // disable all case buttons
+          document.body.classList.add('disableAllCases');
+          DoubleDown.Skin.preload('swapCase_assets')
+            .catch(error => {
+              'Swap Assets Not loaded ' + error
+            })
+            .finally(() => {
+              document.body.classList.add('swapCases');
+            });
+
+          // Delay button click until final case animation has finished
+          setTimeout(function() {
+            DoubleDown.app.model.disable = 'swapBtn-enabled';
+            DoubleDown.app.view.map(DoubleDown.app.model);
+          }, 3000);
+        }
+
+        // Get the DealAmount
+        DoubleDown.app.model.bankDealAmountValue = parseFloat(bankDealAmountValue.toPrecision(3));
+        DoubleDown.app.model.bankDealAmountabbreviate = parseInt(bankDealAmountValue).abbreviateNum();
+        // change the aphabet to the case amount
+        DoubleDown.app.model.cases[casePos].aphabet = caseMenuAmt;
+        // disable current button
+        DoubleDown.app.model.cases[casePos].disable = 'btn-disable';
+        // change text style to red
+        DoubleDown.app.model.cases[casePos].changeTextStyle = 'case-selected';
+        // Swap image to open case image
+        DoubleDown.app.model.cases[casePos].changeBg = 'caseOpen';
+        DoubleDown.app.view.map(DoubleDown.app.model);
+        DoubleDown.app.getFinalCasePos();
+      }
+
+      DoubleDown.app.getFinalCasePos = function() {
+        var pageWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+        var pageHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+
+        // get the final case position
+        var rect = document.querySelectorAll('.caseClosed')[0].getBoundingClientRect();
+        var posLeft = rect.left / pageWidth * 100;
+        var posTop = rect.top / pageHeight * 100;
+
+        // Add final case pos to finalCase
+        DoubleDown.app.model.finalCaseTopPos = posTop + '%';
+        DoubleDown.app.model.finalCaseLeftPos = posLeft + '%';
+        DoubleDown.app.view.map(DoubleDown.app.model);
+      }
+
+      DoubleDown.app.information = function() {
+        DoubleDown.app.removeBodyClasses();
+        DoubleDown.Skin.preload('information_assets')
+          .catch(error => {
+            'Info Assets Not loaded ' + error
+          })
+          .finally(() => {
+            document.body.classList.add('information');
+          });
+      }
+
+      DoubleDown.app.next = function() {
+        document.body.classList.remove('information');
+      }
+
+      // swap case button method
+      DoubleDown.app.swapCases = function() {
+        // set last case as final total
+        DoubleDown.app.model.finalTotal = DoubleDown.app.casesRemaining[0].formatRadix();
+        DoubleDown.app.model.finalTotalValue = DoubleDown.app.casesRemaining[0];
+        DoubleDown.app.model.confirmationType = 'ARE YOU SURE YOU WANT TO SWAP FOR THE LAST UNOPENED ' + DoubleDown.app.model.tokenName + '?';
+        DoubleDown.app.model.confirmationTxt = 'By swapping your ' + DoubleDown.app.model.tokenName + ', you won:';
+        document.body.classList.add('confirmation');
+        DoubleDown.app.view.map(DoubleDown.app.model);
+      }
+
+      // make deal button method
+      DoubleDown.app.makeDeal = function() {
+        // set bank deal as final total
+        DoubleDown.app.model.finalTotal = DoubleDown.app.model.bankDealAmountValue.formatRadix();
+        DoubleDown.app.model.finalTotalValue = DoubleDown.app.model.bankDealAmountValue;
+        DoubleDown.app.model.confirmationType = 'ARE YOU SURE YOU WANT TO TAKE THE SAFE BET?';
+        DoubleDown.app.model.confirmationTxt = 'By taking the Safe Bet, you won:';
+        document.body.classList.add('confirmation');
+        DoubleDown.app.view.map(DoubleDown.app.model);
+      }
+
+      // cash out button method
+      DoubleDown.app.cashOut = function() {
+        if (DoubleDown.app.readyToPlayAgain) {
+          DoubleDown.api.Dispose();
+        } else {
+          // set secret case as final total
+          DoubleDown.app.model.finalTotal = DoubleDown.app.model.secretCase.formatRadix();
+          DoubleDown.app.model.finalTotalValue = DoubleDown.app.model.secretCase;
+          DoubleDown.app.model.confirmationType = 'ARE YOU SURE YOU WANT TO TAKE YOUR ' + DoubleDown.app.model.tokenName + '?';
+          DoubleDown.app.model.confirmationTxt = 'By taking your ' + DoubleDown.app.model.tokenName + ', you won:';
+          document.body.classList.add('confirmation');
+          DoubleDown.app.view.map(DoubleDown.app.model);
+        }
+      }
+
+      DoubleDown.app.collectCase = function() {
+        return DoubleDown.api.GrantCredits(DoubleDown.app.model.finalTotalValue, true)
+          .then(() => {
+            DoubleDown.app.removeBodyClasses();
+            DoubleDown.Skin.preload('collect_assets')
+              .catch(error => {
+                'Collect Assets Not loaded ' + error
+              })
+              .finally(() => {
+                document.body.classList.add('collectCase');
+              });
+          })
+          .catch(error => DoubleDown.api.LogError('Grant Credits Failed: ' + error));
+      }
+
+      DoubleDown.app.collectCredits = function() {
+        return DoubleDown.api.QueueCreditCelebration('Congratulations!', 'You won', DoubleDown.app.model.finalTotalValue)
+          .then(() => {
+            DoubleDown.app.removeBodyClasses();
+            // check to see if trigger is true and product available
+            if (DoubleDown.app.model.productPrice && DoubleDown.app.config.playAgainTrigger) {
+              DoubleDown.app.readyToPlayAgain = true;
+              // load play again assets
+              DoubleDown.Skin.preload('playAgain_assets')
+                .catch(error => {
+                  'Play Again Assets Not loaded ' + error
+                })
+                .finally(() => {
+                  document.body.classList.add('playAgain');
+                  // requeue spycase game
+                  return DoubleDown.api.Requeue();
+                });
+            } else {
+              DoubleDown.api.Dispose();
+            }
+            DoubleDown.app.resetGame();
+          })
+          .catch(error => DoubleDown.api.LogError('Grant Credits Failed: ' + error));
+      }
+
+      DoubleDown.app.resetGame = function() {
+        DoubleDown.app.removeBodyClasses();
+
+        // reset the case Amounts
+        DoubleDown.app.caseAmts = DoubleDown.app.config.caseAmt.split(',').map(i => parseInt(i));
+        DoubleDown.app.casesPicked = [];
+        DoubleDown.app.allCases = DoubleDown.app.caseAmts;
+
+        // resort the case Amounts in Random Order
+        for (i = DoubleDown.app.caseAmts.length - 1; i > 0; i--) {
+          j = Math.floor(Math.random() * i)
+          k = DoubleDown.app.caseAmts[i]
+          DoubleDown.app.caseAmts[i] = DoubleDown.app.caseAmts[j]
+          DoubleDown.app.caseAmts[j] = k
+        }
+
+        // reset the secret case Amount
+        DoubleDown.app.model.secretCase = DoubleDown.app.caseAmts[DoubleDown.app.caseAmts.length - 1];
+
+        // reset the game
+        for (i = 0; i < DoubleDown.app.model.cases.length; i++) {
+          DoubleDown.app.model.cases[i].disable = 'btn-enabled';
+          DoubleDown.app.model.cases[i].disableMenu = 'menu-enabled';
+          DoubleDown.app.model.cases[i].changeTextStyle = 'case-not-selected';
+          DoubleDown.app.model.cases[i].changeBg = 'caseClosed';
+          DoubleDown.app.model.cases[i].aphabet = DoubleDown.app.alphabets[i];
+          DoubleDown.app.model.cases[i].caseAmt = DoubleDown.app.caseAmts[i];
+          DoubleDown.app.model.cases[i].casePos = i;
+          DoubleDown.app.model.cases[i].yourCase = (DoubleDown.app.caseAmts.length - 1) == i ? 'yourCase' : '';
+        }
+        DoubleDown.app.view.map(DoubleDown.app.model);
+      }
+
+      // make purchase
+      DoubleDown.app.purchase = function() {
+        return DoubleDown.api.PurchaseProduct(DoubleDown.app.model.offer.productId)
+          .then(product => {
+            DoubleDown.app.removeBodyClasses();
+            DoubleDown.app.readyToPlayAgain = false;
+            DoubleDown.api.QueueCreditCelebration('Thank You', 'for your purchase!', product.quantity);
+            return DoubleDown.api.Requeue();
+          })
+          .catch(error => console.error('Product Failed: ' + error));
+      }
+
+      DoubleDown.app.changeDecision = function() {
+        document.body.classList.remove('confirmation');
+      }
+
+      DoubleDown.app.removeBodyClasses = function() {
+        while (document.body.classList.length) {
+          document.body.classList.remove(
+            document.body.classList[0]
+          )
+        }
+      }
+
+      DoubleDown.app.ready
+        .then(() => DoubleDown.api.GetConfigValues())
+        .then(config => DoubleDown.Product.fromConfig(config)
+          .then(products => {
+            DoubleDown.app.config = config;
+            config.caseAmt = (config.caseAmt || '100000, 200000, 250000, 300000, 400000, 500000, 1000000, 2000000, 5000000, 10000000').toString();
+            config.playAgainTrigger = config.playAgainTrigger || false;
+            DoubleDown.app.caseAmts = config.caseAmt.split(',').map(i => parseInt(i));
+            var caseAmtMenus = config.caseAmt.split(',').map(i => parseInt(i));
+            DoubleDown.app.alphabets = 'ABCDEFGHIJ'.split('');
+
+            // The Fisher Yates Method Sorting an Array in Random Order
+            for (i = DoubleDown.app.caseAmts.length - 1; i > 0; i--) {
+              j = Math.floor(Math.random() * i)
+              k = DoubleDown.app.caseAmts[i]
+              DoubleDown.app.caseAmts[i] = DoubleDown.app.caseAmts[j]
+              DoubleDown.app.caseAmts[j] = k
+            }
+
+            // set up starting Deal Amount
+            DoubleDown.app.totalSum = (a, b) => a + b;
+            DoubleDown.app.allCases = DoubleDown.app.caseAmts;
+            DoubleDown.app.allMenuAmts = caseAmtMenus;
+            DoubleDown.app.totalSumOfAllCases = DoubleDown.app.allCases.reduce(DoubleDown.app.totalSum);
+            var bankDealAmountValue = parseFloat((DoubleDown.app.totalSumOfAllCases / DoubleDown.app.caseAmts.length).toPrecision(3));
+            var bankDealAmountabbreviate = DoubleDown.app.totalSumOfAllCases / DoubleDown.app.caseAmts.length;
+
+            DoubleDown.app.model = {
+              secretCase: DoubleDown.app.caseAmts[DoubleDown.app.caseAmts.length - 1],
+              bankDealAmountabbreviate: parseInt(bankDealAmountabbreviate).abbreviateNum(),
+              bankDealAmountValue: bankDealAmountValue,
+              finalTotal: bankDealAmountValue.formatRadix(),
+              finalTotalValue: bankDealAmountValue,
+              finalCaseTopPos: '0%',
+              finalCaseLeftPos: '0%',
+              disable: 'swapBtn-disable',
+              confirmationType: 'CASH OUT',
+              confirmationTxt: 'By swapping spy case you won:',
+              bounce: 'bounce',
+              // restrict the amount of characters they can add in DDNA
+              tokenName: config.tokenName || 'Case',
+              productPrice: products[0] ? (products[0].price && products[0].price.price).formatMoney() : false,
+              productQuantity: products[0] ? products[0].quantity : false,
+              productQuantityFormatted: products[0] ? products[0].quantity.formatRadix() : false,
+              offer: products[0],
+              products: products,
+              cases: DoubleDown.app.caseAmts.map((p, i) => {
+                return {
+                  caseAmt: DoubleDown.app.caseAmts[i],
+                  caseAmtAbbreviate: DoubleDown.app.caseAmts[i].abbreviateNum(),
+                  caseAmtMenuAbbreviate: caseAmtMenus[i].abbreviateNum(),
+                  aphabet: DoubleDown.app.alphabets[i],
+                  casePos: i,
+                  disable: 'btn-enabled',
+                  disableMenu: 'menu-enabled',
+                  changeTextStyle: 'case-not-selected',
+                  changeBg: 'caseClosed',
+                  yourCase: (DoubleDown.app.caseAmts.length - 1) == i ? 'yourCase' : ''
+                }
+              })
+            };
+
+            // clear body class for cache issues
+            DoubleDown.app.removeBodyClasses();
+            DoubleDown.app.readyToPlayAgain = false;
+            DoubleDown.app.view.map(DoubleDown.app.model);
+          }))
+        .then(() => DoubleDown.api.Show())
+        .catch(error => {
+          try {
+            console.error(error);
+          } catch (ex) {}
+          try {
+            DoubleDown.api.Dispose();
+          } catch (ex) {}
+        });
+    </script>
+  
+
+</body></html>
