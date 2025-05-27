@@ -16,9 +16,7 @@ This is a browser-based JavaScript game inspired by the classic TV game show **"
 - Option to play again
 - All Javascript
 
-<img src="https://www.gamemeatloaf.com/case-swap/images/caseswap.jpg" alt="Case Swap">
-
-
+<img src="https://www.gamemeatloaf.com/case-swap/images/caseswap.jpg" alt="Case Swap" target="blank" >
 
 
 # Live play test link
