@@ -16,6 +16,13 @@ This is a browser-based JavaScript game inspired by the classic TV game show **"
 - Option to play again
 - All Javascript
 
+### Get Started
+- You don’t need any installations. Just:
+git clone https://github.com/yourusername/caseswap.git
+cd caseswap
+
+Run Locally
+
 <img src="https://www.gamemeatloaf.com/case-swap/images/caseswap.jpg" alt="Case Swap" target="blank" >
 
 
